@@ -1,0 +1,12 @@
+---
+site_name: cardiff
+vpc_cidr: 10.20.0.0/16
+
+subnets:
+  private: 10.20.10.0/24
+  public: 10.20.20.0/24
+  guest: 10.20.30.0/24
+  management: 10.20.254.0/28
+
+peer_site_cidr: 10.10.0.0/16
+peer_site_name: llanelli

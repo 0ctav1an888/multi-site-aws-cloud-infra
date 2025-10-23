@@ -1,0 +1,99 @@
+---
+- name: Network connectivity testing
+  hosts: all
+  become: yes
+  gather_facts: yes
+
+  tasks:
+    - name: Test internet connectivity
+      ansible.builtin.command: ping -c 3 8.8.8.8
+      register: internet_ping
+      changed_when: false
+      failed_when: false
+
+    - name: Log internet connectivity result
+      ansible.builtin.debug:
+        msg: "Internet connectivity: {{ 'SUCCESS' if internet_ping.rc == 0 else 'FAILED' }}"
+
+    - name: Test DNS resolution
+      ansible.builtin.command: nslookup google.com
+      register: dns_test
+      changed_when: false
+      failed_when: false
+
+    - name: Log DNS resolution result
+      ansible.builtin.debug:
+        msg: "DNS resolution: {{ 'SUCCESS' if dns_test.rc == 0 else 'FAILED' }}"
+
+    - name: Test connectivity to all Llanelli servers
+      ansible.builtin.command: ping -c 2 {{ hostvars[item]['ansible_host'] }}
+      loop: "{{ groups['llanelli'] }}"
+      when: inventory_hostname != item
+      register: llanelli_ping
+      changed_when: false
+      failed_when: false
+
+    - name: Test connectivity to all Cardiff servers
+      ansible.builtin.command: ping -c 2 {{ hostvars[item]['ansible_host'] }}
+      loop: "{{ groups['cardiff'] }}"
+      when: inventory_hostname != item
+      register: cardiff_ping
+      changed_when: false
+      failed_when: false
+
+    - name: Test cross-site connectivity (Llanelli to Cardiff)
+      ansible.builtin.command: ping -c 3 {{ hostvars[item]['ansible_host'] }}
+      loop: "{{ groups['cardiff'] }}"
+      when: "'llanelli' in group_names"
+      register: llanelli_to_cardiff
+      changed_when: false
+      failed_when: false
+
+    - name: Test cross-site connectivity (Cardiff to Llanelli)
+      ansible.builtin.command: ping -c 3 {{ hostvars[item]['ansible_host'] }}
+      loop: "{{ groups['llanelli'] }}"
+      when: "'cardiff' in group_names"
+      register: cardiff_to_llanelli
+      changed_when: false
+      failed_when: false
+
+    - name: Generate connectivity report
+      ansible.builtin.copy:
+        content: |
+          Connectivity Test Report: {{ ansible_date_time.iso8601 }}
+          Server: {{ inventory_hostname }}
+          IP Address: {{ ansible_default_ipv4.address }}
+          Site: {{ site_name }}
+
+          Internet Connectivity: {{ 'PASS' if internet_ping.rc == 0 else 'FAIL' }}
+          DNS Resolution: {{ 'PASS' if dns_test.rc == 0 else 'FAIL' }}
+
+          Intra-site Connectivity:
+          {% if 'llanelli' in group_names %}
+          {% for result in llanelli_ping.results | default([]) %}
+          {% if result.item != inventory_hostname %}
+            - {{ result.item }}: {{ 'PASS' if result.rc == 0 else 'FAIL' }}
+          {% endif %}
+          {% endfor %}
+          {% endif %}
+          {% if 'cardiff' in group_names %}
+          {% for result in cardiff_ping.results | default([]) %}
+          {% if result.item != inventory_hostname %}
+            - {{ result.item }}: {{ 'PASS' if result.rc == 0 else 'FAIL' }}
+          {% endif %}
+          {% endfor %}
+          {% endif %}
+
+          Cross-site Connectivity:
+          {% if 'llanelli' in group_names %}
+          {% for result in llanelli_to_cardiff.results | default([]) %}
+            - {{ result.item }}: {{ 'PASS' if result.rc == 0 else 'FAIL' }}
+          {% endfor %}
+          {% endif %}
+          {% if 'cardiff' in group_names %}
+          {% for result in cardiff_to_llanelli.results | default([]) %}
+            - {{ result.item }}: {{ 'PASS' if result.rc == 0 else 'FAIL' }}
+          {% endfor %}
+          {% endif %}
+        dest: /var/log/ansible-tests/connectivity-test.log
+        mode: '0644'

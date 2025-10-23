@@ -1,0 +1,94 @@
+---
+- name: Security group and firewall validation
+  hosts: all
+  become: yes
+  gather_facts: yes
+
+  tasks:
+    - name: Check if firewalld is installed
+      ansible.builtin.package_facts:
+        manager: auto
+
+    - name: Test SSH port accessibility (port 22)
+      ansible.builtin.wait_for:
+        port: 22
+        host: "{{ ansible_default_ipv4.address }}"
+        timeout: 5
+      register: ssh_port
+      failed_when: false
+
+    - name: Log SSH port result
+      ansible.builtin.debug:
+        msg: "SSH port (22): {{ 'OPEN' if ssh_port.failed == false else 'CLOSED' }}"
+
+    - name: Test HTTP port accessibility (port 80) for web servers
+      ansible.builtin.wait_for:
+        port: 80
+        host: "{{ ansible_default_ipv4.address }}"
+        timeout: 5
+      register: http_port
+      when: "'web' in inventory_hostname"
+      failed_when: false
+
+    - name: Log HTTP port result for web servers
+      ansible.builtin.debug:
+        msg: "HTTP port (80): {{ 'OPEN' if http_port.failed == false else 'CLOSED' }}"
+      when: "'web' in inventory_hostname"
+
+    - name: Test HTTPS port accessibility (port 443) for web servers
+      ansible.builtin.wait_for:
+        port: 443
+        host: "{{ ansible_default_ipv4.address }}"
+        timeout: 5
+      register: https_port
+      when: "'web' in inventory_hostname"
+      failed_when: false
+
+    - name: Log HTTPS port result for web servers
+      ansible.builtin.debug:
+        msg: "HTTPS port (443): {{ 'OPEN' if https_port.failed == false else 'CLOSED' }}"
+      when: "'web' in inventory_hostname"
+
+    - name: Check NTP port accessibility (port 123) for management traffic
+      ansible.builtin.command: ss -tulpn | grep ':123'
+      register: ntp_port
+      changed_when: false
+      failed_when: false
+
+    - name: Verify security updates are installed
+      ansible.builtin.command: yum check-update --security
+      register: security_updates
+      changed_when: false
+      failed_when: false
+
+    - name: Check SELinux status
+      ansible.builtin.command: getenforce
+      register: selinux_status
+      changed_when: false
+      failed_when: false
+
+    - name: Generate security validation report
+      ansible.builtin.copy:
+        content: |
+          Security Validation Report: {{ ansible_date_time.iso8601 }}
+          Server: {{ inventory_hostname }}
+          IP Address: {{ ansible_default_ipv4.address }}
+          Site: {{ site_name }}
+
+          Port Accessibility:
+            - SSH (22): {{ 'OPEN' if ssh_port.failed == false else 'CLOSED' }}
+          {% if 'web' in inventory_hostname %}
+            - HTTP (80): {{ 'OPEN' if http_port.failed == false else 'CLOSED' }}
+            - HTTPS (443): {{ 'OPEN' if https_port.failed == false else 'CLOSED' }}
+          {% endif %}
+
+          NTP Service: {{ 'RUNNING' if ntp_port.rc == 0 else 'NOT RUNNING' }}
+
+          SELinux Status: {{ selinux_status.stdout | default('Unknown') }}
+
+          Security Updates: {{ 'None available' if security_updates.rc == 0 else 'Updates pending' }}
+
+          OS Version: {{ ansible_distribution }} {{ ansible_distribution_version }}
+          Kernel: {{ ansible_kernel }}
+        dest: /var/log/ansible-tests/security-validation.log
+        mode: '0644'

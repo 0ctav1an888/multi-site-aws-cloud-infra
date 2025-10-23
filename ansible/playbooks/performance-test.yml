@@ -1,0 +1,150 @@
+---
+- name: Performance and latency testing
+  hosts: all
+  become: yes
+  gather_facts: yes
+
+  tasks:
+    - name: Install performance testing tools
+      ansible.builtin.yum:
+        name:
+          - iperf3
+          - sysstat
+        state: present
+
+    - name: Measure cross-site latency to peer site
+      ansible.builtin.command: ping -c 100 {{ hostvars[groups[peer_site_name][0]]['ansible_host'] }}
+      register: latency_test
+      changed_when: false
+
+    - name: Extract latency statistics
+      ansible.builtin.set_fact:
+        latency_avg: "{{ latency_test.stdout | regex_search('rtt min/avg/max/mdev = ([0-9.]+)/([0-9.]+)/([0-9.]+)/([0-9.]+)', '\\2') | first | default('N/A') }}"
+        latency_min: "{{ latency_test.stdout | regex_search('rtt min/avg/max/mdev = ([0-9.]+)/([0-9.]+)/([0-9.]+)/([0-9.]+)', '\\1') | first | default('N/A') }}"
+        latency_max: "{{ latency_test.stdout | regex_search('rtt min/avg/max/mdev = ([0-9.]+)/([0-9.]+)/([0-9.]+)/([0-9.]+)', '\\3') | first | default('N/A') }}"
+        packet_loss: "{{ latency_test.stdout | regex_search('([0-9]+)% packet loss', '\\1') | first | default('0') }}"
+
+    - name: Check system load average
+      ansible.builtin.command: uptime
+      register: load_avg
+      changed_when: false
+
+    - name: Check memory usage
+      ansible.builtin.command: free -m
+      register: memory_usage
+      changed_when: false
+
+    - name: Check disk I/O statistics
+      ansible.builtin.command: iostat -x 1 5
+      register: disk_io
+      changed_when: false
+
+    - name: Check network interface statistics
+      ansible.builtin.command: ip -s link show
+      register: network_stats
+      changed_when: false
+
+    - name: Test DNS resolution performance
+      ansible.builtin.command: time nslookup google.com
+      register: dns_performance
+      changed_when: false
+      failed_when: false
+
+    - name: Measure intra-site latency
+      ansible.builtin.command: ping -c 50 {{ hostvars[item]['ansible_host'] }}
+      loop: "{{ groups[site_name] }}"
+      when: inventory_hostname != item
+      register: intra_site_latency
+      changed_when: false
+
+    - name: Check network throughput to peer site (client mode preparation)
+      ansible.builtin.command: which iperf3
+      register: iperf_check
+      changed_when: false
+
+    - name: Get CPU information
+      ansible.builtin.command: lscpu
+      register: cpu_info
+      changed_when: false
+
+    - name: Get disk usage
+      ansible.builtin.command: df -h
+      register: disk_usage
+      changed_when: false
+
+    - name: Check TCP connection statistics
+      ansible.builtin.command: ss -s
+      register: tcp_stats
+      changed_when: false
+
+    - name: Generate performance test report
+      ansible.builtin.copy:
+        content: |
+          Performance Test Report: {{ ansible_date_time.iso8601 }}
+          Server: {{ inventory_hostname }}
+          IP Address: {{ ansible_default_ipv4.address }}
+          Site: {{ site_name }}
+
+          ========================================
+          LATENCY METRICS
+          ========================================
+
+          Cross-Site Latency (to {{ peer_site_name }}):
+            Minimum: {{ latency_min }} ms
+            Average: {{ latency_avg }} ms
+            Maximum: {{ latency_max }} ms
+            Packet Loss: {{ packet_loss }}%
+            Status: {{ 'GOOD' if latency_avg | float < 50 else 'ACCEPTABLE' if latency_avg | float < 100 else 'POOR' }}
+
+          Intra-Site Latency:
+          {% for result in intra_site_latency.results | default([]) %}
+          {% set intra_avg = result.stdout | regex_search('rtt min/avg/max/mdev = ([0-9.]+)/([0-9.]+)/([0-9.]+)/([0-9.]+)', '\\2') | first | default('N/A') %}
+            - {{ result.item }}: {{ intra_avg }} ms (avg)
+          {% endfor %}
+
+          ========================================
+          SYSTEM PERFORMANCE
+          ========================================
+
+          Load Average:
+          {{ load_avg.stdout }}
+
+          Memory Usage:
+          {{ memory_usage.stdout }}
+
+          Disk Usage:
+          {{ disk_usage.stdout }}
+
+          CPU Information:
+          {{ cpu_info.stdout_lines[0:5] | join('\n') }}
+
+          ========================================
+          NETWORK PERFORMANCE
+          ========================================
+
+          TCP Connection Statistics:
+          {{ tcp_stats.stdout }}
+
+          Network Interface Statistics:
+          {{ network_stats.stdout_lines[0:10] | join('\n') }}
+
+          DNS Resolution Performance:
+            {{ 'FAST' if dns_performance.rc == 0 else 'SLOW' }}
+
+          ========================================
+          DISK I/O PERFORMANCE
+          ========================================
+
+          {{ disk_io.stdout_lines[-10:] | join('\n') }}
+
+          ========================================
+          PERFORMANCE SUMMARY
+          ========================================
+
+          Cross-Site Connectivity: {{ 'OPTIMAL' if latency_avg | float < 30 else 'GOOD' if latency_avg | float < 50 else 'ACCEPTABLE' }}
+          Packet Loss: {{ 'EXCELLENT' if packet_loss | int == 0 else 'POOR' }}
+          System Load: {{ load_avg.stdout.split('load average:')[1] if 'load average:' in load_avg.stdout else 'N/A' }}
+
+          Test Completion Time: {{ ansible_date_time.iso8601 }}
+        dest: /var/log/ansible-tests/performance-test.log
+        mode: '0644'

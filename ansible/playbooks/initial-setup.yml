@@ -1,0 +1,50 @@
+---
+- name: Initial server setup and configuration
+  hosts: all
+  become: yes
+  gather_facts: yes
+
+  roles:
+    - common
+
+  tasks:
+    - name: Verify hostname is set correctly
+      ansible.builtin.assert:
+        that:
+          - ansible_hostname == inventory_hostname
+        fail_msg: "Hostname {{ ansible_hostname }} does not match inventory name {{ inventory_hostname }}"
+        success_msg: "Hostname correctly set to {{ inventory_hostname }}"
+
+    - name: Verify timezone is set
+      ansible.builtin.command: timedatectl show --property=Timezone --value
+      register: current_timezone
+      changed_when: false
+
+    - name: Check timezone setting
+      ansible.builtin.assert:
+        that:
+          - current_timezone.stdout == timezone
+        fail_msg: "Timezone is {{ current_timezone.stdout }}, expected {{ timezone }}"
+        success_msg: "Timezone correctly set to {{ timezone }}"
+
+    - name: Verify chronyd is running
+      ansible.builtin.service_facts:
+
+    - name: Check chronyd service
+      ansible.builtin.assert:
+        that:
+          - ansible_facts.services['chronyd.service'].state == 'running'
+          - ansible_facts.services['chronyd.service'].status == 'enabled'
+        fail_msg: "Chronyd service is not running or enabled"
+        success_msg: "Chronyd service is running and enabled"
+
+    - name: Log initial setup completion
+      ansible.builtin.copy:
+        content: |
+          Initial Setup Completed: {{ ansible_date_time.iso8601 }}
+          Hostname: {{ ansible_hostname }}
+          IP Address: {{ ansible_default_ipv4.address }}
+          OS: {{ ansible_distribution }} {{ ansible_distribution_version }}
+          Timezone: {{ timezone }}
+        dest: /var/log/ansible-tests/initial-setup.log
+        mode: '0644'

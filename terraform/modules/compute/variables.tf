@@ -19,6 +19,12 @@ variable "subnet_id" {
   description = "Subnet ID to place the instance in"
 }
 
+variable "private_ip" {
+  type        = string
+  description = "Private IP address to assign"
+  default     = ""
+}
+
 variable "associate_public_ip" {
   type        = bool
   default     = false

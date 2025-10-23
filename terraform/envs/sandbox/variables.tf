@@ -35,7 +35,7 @@ variable "llanelli_private_subnets" {
 variable "llanelli_management_subnet" {
   type        = string
   description = "CIDR for management subnet in Llanelli"
-  default     = "10.10.254.0/24"
+  default     = "10.10.254.0/28"
 }
 
 variable "llanelli_guest_subnet" {
@@ -90,4 +90,10 @@ variable "ami_id" {
   type        = string
   description = "AMI ID for EC2 instances"
   default     = "ami-0c1c30571d2dae5c9"
+}
+
+variable "key_name" {
+  type        = string
+  description = "SSH key pair name for EC2 instances"
+  default     = "welsh-blanket-factory"
 }

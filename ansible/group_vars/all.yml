@@ -1,0 +1,25 @@
+---
+aws_region: eu-west-2
+environment: sandbox
+
+llanelli_vpc_cidr: 10.10.0.0/16
+cardiff_vpc_cidr: 10.20.0.0/16
+
+common_packages:
+  - curl
+  - wget
+  - net-tools
+  - telnet
+  - nc
+  - bind-utils
+  - tcpdump
+  - iperf3
+  - python3
+  - python3-pip
+
+timezone: Europe/London
+
+ntp_servers:
+  - 169.254.169.123
+
+cloudwatch_namespace: WelshBlanketFactory

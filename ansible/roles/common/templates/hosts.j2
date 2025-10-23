@@ -1,0 +1,13 @@
+127.0.0.1   localhost localhost.localdomain localhost4 localhost4.localdomain4
+::1         localhost localhost.localdomain localhost6 localhost6.localdomain6
+
+# Welsh Blanket Factory Servers
+# Llanelli Site
+{% for host in groups['llanelli'] %}
+{{ hostvars[host]['ansible_host'] }}    {{ host }} {{ host }}.{{ site_name }}.local
+{% endfor %}
+
+# Cardiff Site
+{% for host in groups['cardiff'] %}
+{{ hostvars[host]['ansible_host'] }}    {{ host }} {{ host }}.{{ site_name }}.local
+{% endfor %}

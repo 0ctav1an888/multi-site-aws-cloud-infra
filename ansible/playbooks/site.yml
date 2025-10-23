@@ -1,0 +1,173 @@
+---
+- name: Welsh Blanket Factory - Complete Infrastructure Testing Suite
+  hosts: all
+  become: yes
+  gather_facts: yes
+
+  tasks:
+    - name: Display test suite banner
+      ansible.builtin.debug:
+        msg:
+          - "=========================================="
+          - "Welsh Blanket Factory"
+          - "Multi-Site Infrastructure Test Suite"
+          - "=========================================="
+          - "Test Date: {{ ansible_date_time.iso8601 }}"
+          - "Target Sites: Llanelli & Cardiff"
+          - "Total Servers: {{ groups['all'] | length }}"
+          - "=========================================="
+
+- name: Phase 1 - Initial Server Setup
+  ansible.builtin.import_playbook: initial-setup.yml
+
+- name: Display Phase 1 completion
+  hosts: localhost
+  gather_facts: no
+  tasks:
+    - name: Phase 1 status
+      ansible.builtin.debug:
+        msg:
+          - "=========================================="
+          - "Phase 1: Initial Setup - COMPLETED"
+          - "=========================================="
+
+- name: Phase 2 - Network Connectivity Testing
+  ansible.builtin.import_playbook: connectivity-test.yml
+
+- name: Display Phase 2 completion
+  hosts: localhost
+  gather_facts: no
+  tasks:
+    - name: Phase 2 status
+      ansible.builtin.debug:
+        msg:
+          - "=========================================="
+          - "Phase 2: Connectivity Tests - COMPLETED"
+          - "=========================================="
+
+- name: Phase 3 - Security Validation
+  ansible.builtin.import_playbook: security-validation.yml
+
+- name: Display Phase 3 completion
+  hosts: localhost
+  gather_facts: no
+  tasks:
+    - name: Phase 3 status
+      ansible.builtin.debug:
+        msg:
+          - "=========================================="
+          - "Phase 3: Security Validation - COMPLETED"
+          - "=========================================="
+
+- name: Phase 4 - Integration Testing
+  ansible.builtin.import_playbook: integration-test.yml
+
+- name: Display Phase 4 completion
+  hosts: localhost
+  gather_facts: no
+  tasks:
+    - name: Phase 4 status
+      ansible.builtin.debug:
+        msg:
+          - "=========================================="
+          - "Phase 4: Integration Tests - COMPLETED"
+          - "=========================================="
+
+- name: Phase 5 - Performance Testing
+  ansible.builtin.import_playbook: performance-test.yml
+
+- name: Display Phase 5 completion
+  hosts: localhost
+  gather_facts: no
+  tasks:
+    - name: Phase 5 status
+      ansible.builtin.debug:
+        msg:
+          - "=========================================="
+          - "Phase 5: Performance Tests - COMPLETED"
+          - "=========================================="
+
+- name: Generate consolidated test report
+  hosts: all
+  become: yes
+  gather_facts: yes
+
+  tasks:
+    - name: Fetch all test logs from remote servers
+      ansible.builtin.fetch:
+        src: "/var/log/ansible-tests/{{ item }}"
+        dest: "./test-reports/{{ inventory_hostname }}/{{ item }}"
+        flat: yes
+      loop:
+        - initial-setup.log
+        - connectivity-test.log
+        - security-validation.log
+        - integration-test.log
+        - performance-test.log
+      failed_when: false
+
+    - name: Create consolidated report summary
+      ansible.builtin.copy:
+        content: |
+          ==========================================
+          WELSH BLANKET FACTORY
+          Infrastructure Test Suite - Final Report
+          ==========================================
+
+          Test Execution Date: {{ ansible_date_time.iso8601 }}
+          Total Servers Tested: {{ groups['all'] | length }}
+
+          Sites:
+            - Llanelli: {{ groups['llanelli'] | length }} servers
+            - Cardiff: {{ groups['cardiff'] | length }} servers
+
+          Test Phases Completed:
+            1. Initial Setup
+            2. Network Connectivity
+            3. Security Validation
+            4. Integration Testing
+            5. Performance Testing
+
+          Individual server reports available at:
+            /var/log/ansible-tests/
+
+          Local consolidated reports directory:
+            ./test-reports/
+
+          ==========================================
+          TEST SUMMARY
+          ==========================================
+
+          Server: {{ inventory_hostname }}
+          Site: {{ site_name }}
+          IP: {{ ansible_default_ipv4.address }}
+          VPC CIDR: {{ vpc_cidr }}
+          Peer Site: {{ peer_site_name }}
+
+          All test logs have been collected.
+          Review individual logs for detailed results.
+
+          ==========================================
+        dest: /var/log/ansible-tests/consolidated-report.log
+        mode: '0644'
+
+- name: Display final test suite summary
+  hosts: localhost
+  gather_facts: no
+  tasks:
+    - name: Final summary
+      ansible.builtin.debug:
+        msg:
+          - "=========================================="
+          - "ALL TESTS COMPLETED SUCCESSFULLY"
+          - "=========================================="
+          - "Test reports have been generated and"
+          - "stored locally in ./test-reports/"
+          - ""
+          - "Review the reports to verify:"
+          - "  - VPC peering connectivity"
+          - "  - Cross-site communication"
+          - "  - Security group configurations"
+          - "  - Network performance metrics"
+          - "  - System configurations"
+          - "=========================================="

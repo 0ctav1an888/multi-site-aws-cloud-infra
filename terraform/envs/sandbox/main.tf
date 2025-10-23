@@ -82,6 +82,13 @@ module "sg_llanelli_file_server" {
   vpc_id      = module.llanelli.vpc_id
   ingress_rules = [
     {
+      from_port   = 22
+      to_port     = 22
+      protocol    = "tcp"
+      cidr_blocks = ["10.10.0.0/16", "10.20.0.0/16"]
+      description = "SSH access"
+    },
+    {
       from_port   = 445
       to_port     = 445
       protocol    = "tcp"
@@ -148,6 +155,13 @@ module "sg_llanelli_web_server" {
   vpc_id      = module.llanelli.vpc_id
   ingress_rules = [
     {
+      from_port   = 22
+      to_port     = 22
+      protocol    = "tcp"
+      cidr_blocks = ["10.10.0.0/16", "10.20.0.0/16"]
+      description = "SSH access"
+    },
+    {
       from_port   = 80
       to_port     = 80
       protocol    = "tcp"
@@ -180,6 +194,13 @@ module "sg_llanelli_dhcp_server" {
   description = "Security group for Llanelli DHCP server"
   vpc_id      = module.llanelli.vpc_id
   ingress_rules = [
+    {
+      from_port   = 22
+      to_port     = 22
+      protocol    = "tcp"
+      cidr_blocks = ["10.10.0.0/16", "10.20.0.0/16"]
+      description = "SSH access"
+    },
     {
       from_port   = 67
       to_port     = 68
@@ -241,6 +262,13 @@ module "sg_cardiff_email_server" {
   description = "Security group for Cardiff email server"
   vpc_id      = module.cardiff.vpc_id
   ingress_rules = [
+    {
+      from_port   = 22
+      to_port     = 22
+      protocol    = "tcp"
+      cidr_blocks = ["10.20.0.0/16", "10.10.0.0/16"]
+      description = "SSH access"
+    },
     {
       from_port   = 25
       to_port     = 25
@@ -322,6 +350,13 @@ module "sg_cardiff_dhcp_server" {
   vpc_id      = module.cardiff.vpc_id
   ingress_rules = [
     {
+      from_port   = 22
+      to_port     = 22
+      protocol    = "tcp"
+      cidr_blocks = ["10.20.0.0/16", "10.10.0.0/16"]
+      description = "SSH access"
+    },
+    {
       from_port   = 67
       to_port     = 68
       protocol    = "udp"
@@ -349,6 +384,8 @@ module "llanelli_file_server" {
   ami                = var.ami_id
   instance_type      = "t3.small"
   subnet_id          = module.llanelli.private_subnet_ids[0]
+  private_ip         = "10.10.10.10"
+  key_name           = var.key_name
   security_group_ids = [module.sg_llanelli_file_server.security_group_id]
   tags               = { Site = "llanelli", Role = "file-server", Environment = "sandbox" }
 }
@@ -359,6 +396,8 @@ module "llanelli_developer_server" {
   ami                = var.ami_id
   instance_type      = "t3.small"
   subnet_id          = module.llanelli.private_subnet_ids[0]
+  private_ip         = "10.10.10.11"
+  key_name           = var.key_name
   security_group_ids = [module.sg_llanelli_developer_server.security_group_id]
   tags               = { Site = "llanelli", Role = "developer-server", Environment = "sandbox" }
 }
@@ -369,7 +408,9 @@ module "llanelli_web_server" {
   ami                 = var.ami_id
   instance_type       = "t3.micro"
   subnet_id           = module.llanelli.public_subnet_ids[0]
+  private_ip          = "10.10.20.10"
   associate_public_ip = true
+  key_name            = var.key_name
   security_group_ids  = [module.sg_llanelli_web_server.security_group_id]
   tags                = { Site = "llanelli", Role = "web-server", Environment = "sandbox" }
 }
@@ -380,6 +421,8 @@ module "llanelli_dhcp_server" {
   ami                = var.ami_id
   instance_type      = "t3.micro"
   subnet_id          = module.llanelli.private_subnet_ids[0]
+  private_ip         = "10.10.10.12"
+  key_name           = var.key_name
   security_group_ids = [module.sg_llanelli_dhcp_server.security_group_id]
   tags               = { Site = "llanelli", Role = "dhcp-server", Environment = "sandbox" }
 }
@@ -392,6 +435,8 @@ module "cardiff_backup_server" {
   ami                = var.ami_id
   instance_type      = "t3.small"
   subnet_id          = module.cardiff.private_subnet_ids[0]
+  private_ip         = "10.20.10.10"
+  key_name           = var.key_name
   security_group_ids = [module.sg_cardiff_backup_server.security_group_id]
   tags               = { Site = "cardiff", Role = "backup-server", Environment = "sandbox" }
 }
@@ -402,6 +447,8 @@ module "cardiff_email_server" {
   ami                = var.ami_id
   instance_type      = "t3.small"
   subnet_id          = module.cardiff.private_subnet_ids[0]
+  private_ip         = "10.20.10.11"
+  key_name           = var.key_name
   security_group_ids = [module.sg_cardiff_email_server.security_group_id]
   tags               = { Site = "cardiff", Role = "email-server", Environment = "sandbox" }
 }
@@ -412,6 +459,8 @@ module "cardiff_security_server" {
   ami                = var.ami_id
   instance_type      = "t3.small"
   subnet_id          = module.cardiff.private_subnet_ids[0]
+  private_ip         = "10.20.10.12"
+  key_name           = var.key_name
   security_group_ids = [module.sg_cardiff_security_server.security_group_id]
   tags               = { Site = "cardiff", Role = "security-server", Environment = "sandbox" }
 }
@@ -422,6 +471,8 @@ module "cardiff_dhcp_server" {
   ami                = var.ami_id
   instance_type      = "t3.micro"
   subnet_id          = module.cardiff.private_subnet_ids[0]
+  private_ip         = "10.20.10.13"
+  key_name           = var.key_name
   security_group_ids = [module.sg_cardiff_dhcp_server.security_group_id]
   tags               = { Site = "cardiff", Role = "dhcp-server", Environment = "sandbox" }
 }

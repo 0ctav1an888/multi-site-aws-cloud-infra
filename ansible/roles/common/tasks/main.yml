@@ -1,0 +1,44 @@
+---
+- name: Update system packages
+  ansible.builtin.yum:
+    name: "*"
+    state: latest
+    update_cache: yes
+  when: ansible_os_family == "RedHat"
+
+- name: Install common packages
+  ansible.builtin.yum:
+    name: "{{ common_packages }}"
+    state: present
+  when: ansible_os_family == "RedHat"
+
+- name: Set timezone
+  community.general.timezone:
+    name: "{{ timezone }}"
+
+- name: Configure /etc/hosts with all servers
+  ansible.builtin.template:
+    src: hosts.j2
+    dest: /etc/hosts
+    owner: root
+    group: root
+    mode: '0644'
+    backup: yes
+
+- name: Set hostname
+  ansible.builtin.hostname:
+    name: "{{ inventory_hostname }}"
+
+- name: Ensure NTP is configured
+  ansible.builtin.lineinfile:
+    path: /etc/chrony.conf
+    line: "server {{ item }} iburst"
+    create: yes
+  loop: "{{ ntp_servers }}"
+  notify: restart chronyd
+
+- name: Create reports directory
+  ansible.builtin.file:
+    path: /var/log/ansible-tests
+    state: directory
+    mode: '0755'

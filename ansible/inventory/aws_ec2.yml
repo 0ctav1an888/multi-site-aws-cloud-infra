@@ -1,0 +1,31 @@
+---
+plugin: amazon.aws.aws_ec2
+regions:
+  - eu-west-2
+
+filters:
+  tag:Environment: sandbox
+  instance-state-name: running
+
+keyed_groups:
+  - key: tags.Site
+    prefix: ""
+    separator: ""
+  - key: tags.Role
+    prefix: ""
+    separator: ""
+  - key: placement.availability_zone
+    prefix: az
+    separator: "_"
+
+hostnames:
+  - tag:Name
+  - private-ip-address
+
+compose:
+  ansible_host: private_ip_address
+  server_role: tags.Role
+  server_site: tags.Site
+  instance_type: instance_type
+
+strict: False

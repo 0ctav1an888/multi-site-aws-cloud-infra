@@ -1,0 +1,127 @@
+---
+- name: Integration testing for multi-site architecture
+  hosts: all
+  become: yes
+  gather_facts: yes
+
+  tasks:
+    - name: Verify VPC peering connectivity by testing cross-site ping
+      ansible.builtin.command: ping -c 5 {{ hostvars[groups[peer_site_name][0]]['ansible_host'] }}
+      register: vpc_peering_test
+      changed_when: false
+      failed_when: vpc_peering_test.rc != 0
+
+    - name: Extract ping statistics
+      ansible.builtin.set_fact:
+        ping_stats: "{{ vpc_peering_test.stdout_lines | select('search', 'packets transmitted') | first }}"
+        ping_rtt: "{{ vpc_peering_test.stdout_lines | select('search', 'rtt') | first | default('N/A') }}"
+
+    - name: Test file server connectivity (port 445 for SMB)
+      ansible.builtin.wait_for:
+        host: "{{ hostvars[item]['ansible_host'] }}"
+        port: 445
+        timeout: 10
+      loop: "{{ groups['llanelli'] + groups['cardiff'] }}"
+      when: "'file' in item"
+      register: file_server_test
+      failed_when: false
+
+    - name: Test web server HTTP connectivity
+      ansible.builtin.uri:
+        url: "http://{{ hostvars[item]['ansible_host'] }}"
+        timeout: 10
+      loop: "{{ groups['llanelli'] + groups['cardiff'] }}"
+      when: "'web' in item"
+      register: web_server_test
+      failed_when: false
+
+    - name: Verify subnet isolation (guest to private)
+      ansible.builtin.command: ping -c 2 -W 2 {{ subnets.private.split('/')[0].split('.')[0:3] | join('.') }}.10
+      register: isolation_test
+      changed_when: false
+      failed_when: false
+      when: ansible_default_ipv4.address | ipaddr(subnets.guest)
+
+    - name: Test DNS resolution for internal hosts
+      ansible.builtin.command: ping -c 1 {{ item }}
+      loop: "{{ groups['llanelli'] + groups['cardiff'] }}"
+      when: inventory_hostname != item
+      register: dns_resolution_test
+      changed_when: false
+      failed_when: false
+
+    - name: Verify NAT Gateway functionality for private subnet
+      ansible.builtin.command: curl -s -o /dev/null -w "%{http_code}" http://www.google.com --connect-timeout 10
+      register: nat_test
+      when: ansible_default_ipv4.address | ipaddr(subnets.private)
+      changed_when: false
+      failed_when: false
+
+    - name: Test NTP synchronization
+      ansible.builtin.command: chronyc sources
+      register: ntp_sources
+      changed_when: false
+      failed_when: false
+
+    - name: Check route table for peer VPC routes
+      ansible.builtin.command: ip route show
+      register: route_table
+      changed_when: false
+
+    - name: Verify peer VPC route exists
+      ansible.builtin.assert:
+        that:
+          - route_table.stdout | regex_search(peer_site_cidr)
+        fail_msg: "Route to peer VPC {{ peer_site_cidr }} not found"
+        success_msg: "Route to peer VPC {{ peer_site_cidr }} exists"
+
+    - name: Generate integration test report
+      ansible.builtin.copy:
+        content: |
+          Integration Test Report: {{ ansible_date_time.iso8601 }}
+          Server: {{ inventory_hostname }}
+          IP Address: {{ ansible_default_ipv4.address }}
+          Site: {{ site_name }}
+          Peer Site: {{ peer_site_name }}
+
+          VPC Peering Test:
+            Status: {{ 'PASS' if vpc_peering_test.rc == 0 else 'FAIL' }}
+            Statistics: {{ ping_stats | default('N/A') }}
+            RTT: {{ ping_rtt | default('N/A') }}
+
+          Route Table Validation:
+            Local VPC: {{ vpc_cidr }}
+            Peer VPC Route: {{ peer_site_cidr }}
+            Route Status: {{ 'CONFIGURED' if route_table.stdout | regex_search(peer_site_cidr) else 'MISSING' }}
+
+          Service Connectivity:
+          {% for result in file_server_test.results | default([]) %}
+            - File Server ({{ result.item }}): {{ 'PASS' if not result.failed else 'FAIL' }}
+          {% endfor %}
+          {% for result in web_server_test.results | default([]) %}
+            - Web Server ({{ result.item }}): {{ 'PASS' if not result.failed else 'FAIL' }}
+          {% endfor %}
+
+          Network Isolation:
+          {% if ansible_default_ipv4.address | ipaddr(subnets.guest) %}
+            Guest to Private: {{ 'ISOLATED (PASS)' if isolation_test.rc != 0 else 'NOT ISOLATED (FAIL)' }}
+          {% else %}
+            N/A (not on guest subnet)
+          {% endif %}
+
+          NAT Gateway Test:
+          {% if ansible_default_ipv4.address | ipaddr(subnets.private) %}
+            Internet via NAT: {{ 'PASS' if nat_test.stdout == '200' else 'FAIL' }}
+          {% else %}
+            N/A (not on private subnet)
+          {% endif %}
+
+          NTP Synchronization:
+            Status: {{ 'SYNCHRONIZED' if ntp_sources.rc == 0 else 'NOT SYNCHRONIZED' }}
+
+          DNS Resolution Tests:
+          {% for result in dns_resolution_test.results | default([]) %}
+            - {{ result.item }}: {{ 'PASS' if result.rc == 0 else 'FAIL' }}
+          {% endfor %}
+        dest: /var/log/ansible-tests/integration-test.log
+        mode: '0644'
