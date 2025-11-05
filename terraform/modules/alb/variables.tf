@@ -119,3 +119,21 @@ variable "tags" {
   description = "Tags to apply to resources"
   default     = {}
 }
+
+variable "enable_access_logs" {
+  description = "Enable ALB access logs"
+  type        = bool
+  default     = false
+}
+
+variable "access_logs_bucket_name" {
+  description = "S3 bucket name for ALB access logs"
+  type        = string
+  default     = ""
+}
+
+variable "access_logs_retention_days" {
+  description = "Number of days to retain ALB access logs"
+  type        = number
+  default     = 30
+}

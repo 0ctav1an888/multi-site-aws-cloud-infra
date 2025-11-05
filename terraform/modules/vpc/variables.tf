@@ -48,3 +48,37 @@ variable "tags" {
   description = "Tags to add to resources"
   default     = {}
 }
+
+variable "enable_flow_logs" {
+  description = "Enable VPC Flow Logs"
+  type        = bool
+  default     = true
+}
+
+variable "flow_logs_retention_days" {
+  description = "Number of days to retain flow logs"
+  type        = number
+  default     = 7 # 7 days for cost optimization, increase for compliance needs
+}
+
+variable "flow_logs_traffic_type" {
+  description = "Type of traffic to log (ALL, ACCEPT, REJECT)"
+  type        = string
+  default     = "ALL"
+
+  validation {
+    condition     = contains(["ALL", "ACCEPT", "REJECT"], var.flow_logs_traffic_type)
+    error_message = "Traffic type must be ALL, ACCEPT, or REJECT."
+  }
+}
+
+variable "flow_logs_max_aggregation_interval" {
+  description = "Maximum interval for aggregating flow logs (60 or 600 seconds)"
+  type        = number
+  default     = 600 # 10 minutes for cost optimization
+
+  validation {
+    condition     = contains([60, 600], var.flow_logs_max_aggregation_interval)
+    error_message = "Aggregation interval must be 60 or 600 seconds."
+  }
+}

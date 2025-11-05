@@ -84,3 +84,9 @@ variable "monitoring" {
   description = "Enable detailed monitoring"
   default     = false
 }
+
+variable "enable_backup" {
+  description = "Enable automated backups for this instance"
+  type        = bool
+  default     = false # Opt-in so only critical instances are tagged
+}

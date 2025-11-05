@@ -1,3 +1,50 @@
+# S3 Bucket for ALB Access Logs
+resource "aws_s3_bucket" "alb_logs" {
+  count  = var.enable_access_logs ? 1 : 0
+  bucket = var.access_logs_bucket_name
+  tags   = var.tags
+}
+
+resource "aws_s3_bucket_lifecycle_configuration" "alb_logs" {
+  count  = var.enable_access_logs ? 1 : 0
+  bucket = aws_s3_bucket.alb_logs[0].id
+
+  rule {
+    id     = "delete_old_logs"
+    status = "Enabled"
+
+    expiration {
+      days = var.access_logs_retention_days
+    }
+  }
+}
+
+resource "aws_s3_bucket_policy" "alb_logs" {
+  count  = var.enable_access_logs ? 1 : 0
+  bucket = aws_s3_bucket.alb_logs[0].id
+  policy = data.aws_iam_policy_document.alb_logs[0].json
+}
+
+data "aws_iam_policy_document" "alb_logs" {
+  count = var.enable_access_logs ? 1 : 0
+
+  statement {
+    effect = "Allow"
+
+    principals {
+      type        = "AWS"
+      identifiers = [data.aws_elb_service_account.main[0].arn]
+    }
+
+    actions   = ["s3:PutObject"]
+    resources = ["${aws_s3_bucket.alb_logs[0].arn}/*"]
+  }
+}
+
+data "aws_elb_service_account" "main" {
+  count = var.enable_access_logs ? 1 : 0
+}
+
 resource "aws_lb" "this" {
   name               = var.name
   internal           = var.internal
@@ -6,6 +53,15 @@ resource "aws_lb" "this" {
   subnets            = var.subnets
 
   enable_deletion_protection = var.enable_deletion_protection
+
+  dynamic "access_logs" {
+    for_each = var.enable_access_logs ? [1] : []
+
+    content {
+      bucket  = aws_s3_bucket.alb_logs[0].bucket
+      enabled = true
+    }
+  }
 
   tags = merge(var.tags, { Name = var.name })
 }

@@ -24,6 +24,17 @@ module "llanelli" {
   guest_subnet      = var.llanelli_guest_subnet
   azs               = var.azs
   enable_nat        = var.enable_nat
+
+  # Enable VPC Flow Logs
+  enable_flow_logs                   = true
+  flow_logs_retention_days           = 7
+  flow_logs_traffic_type             = "ALL"
+  flow_logs_max_aggregation_interval = 600
+
+  tags = {
+    Site        = "Llanelli"
+    Environment = "sandbox"
+  }
 }
 
 module "cardiff" {
@@ -36,6 +47,17 @@ module "cardiff" {
   guest_subnet      = var.cardiff_guest_subnet
   azs               = var.azs
   enable_nat        = var.enable_nat
+
+  # Enable VPC Flow Logs
+  enable_flow_logs                   = true
+  flow_logs_retention_days           = 7
+  flow_logs_traffic_type             = "ALL"
+  flow_logs_max_aggregation_interval = 600
+
+  tags = {
+    Site        = "Cardiff"
+    Environment = "sandbox"
+  }
 }
 
 resource "aws_vpc_peering_connection" "llanelli_cardiff" {
@@ -47,8 +69,10 @@ resource "aws_vpc_peering_connection" "llanelli_cardiff" {
 
 # VPC Peering Routes - Llanelli to Cardiff
 
+# Add routes to all private route tables (one per AZ)
 resource "aws_route" "llanelli_private_to_cardiff" {
-  route_table_id            = module.llanelli.private_route_table_id
+  count                     = length(module.llanelli.private_route_table_ids)
+  route_table_id            = module.llanelli.private_route_table_ids[count.index]
   destination_cidr_block    = var.cardiff_vpc_cidr
   vpc_peering_connection_id = aws_vpc_peering_connection.llanelli_cardiff.id
 }
@@ -61,8 +85,10 @@ resource "aws_route" "llanelli_public_to_cardiff" {
 
 # VPC Peering Routes - Cardiff to Llanelli
 
+# Add routes to all private route tables (one per AZ)
 resource "aws_route" "cardiff_private_to_llanelli" {
-  route_table_id            = module.cardiff.private_route_table_id
+  count                     = length(module.cardiff.private_route_table_ids)
+  route_table_id            = module.cardiff.private_route_table_ids[count.index]
   destination_cidr_block    = var.llanelli_vpc_cidr
   vpc_peering_connection_id = aws_vpc_peering_connection.llanelli_cardiff.id
 }
@@ -387,6 +413,8 @@ module "llanelli_file_server" {
   private_ip         = "10.10.10.10"
   key_name           = var.key_name
   security_group_ids = [module.sg_llanelli_file_server.security_group_id]
+  monitoring         = true # Enable detailed monitoring
+  enable_backup      = true # Enable automated backups
   tags               = { Site = "llanelli", Role = "file-server", Environment = "sandbox" }
 }
 
@@ -399,6 +427,8 @@ module "llanelli_developer_server" {
   private_ip         = "10.10.10.11"
   key_name           = var.key_name
   security_group_ids = [module.sg_llanelli_developer_server.security_group_id]
+  monitoring         = true  # Enable detailed monitoring
+  enable_backup      = false # Not critical for backups
   tags               = { Site = "llanelli", Role = "developer-server", Environment = "sandbox" }
 }
 
@@ -412,6 +442,8 @@ module "llanelli_web_server" {
   associate_public_ip = true
   key_name            = var.key_name
   security_group_ids  = [module.sg_llanelli_web_server.security_group_id]
+  monitoring          = true  # Enable detailed monitoring
+  enable_backup       = false # Stateless web server
   tags                = { Site = "llanelli", Role = "web-server", Environment = "sandbox" }
 }
 
@@ -424,6 +456,8 @@ module "llanelli_dhcp_server" {
   private_ip         = "10.10.10.12"
   key_name           = var.key_name
   security_group_ids = [module.sg_llanelli_dhcp_server.security_group_id]
+  monitoring         = false # Less critical
+  enable_backup      = false # Less critical
   tags               = { Site = "llanelli", Role = "dhcp-server", Environment = "sandbox" }
 }
 
@@ -438,6 +472,8 @@ module "cardiff_backup_server" {
   private_ip         = "10.20.10.10"
   key_name           = var.key_name
   security_group_ids = [module.sg_cardiff_backup_server.security_group_id]
+  monitoring         = true # Enable detailed monitoring
+  enable_backup      = true # Critical backup server needs backups
   tags               = { Site = "cardiff", Role = "backup-server", Environment = "sandbox" }
 }
 
@@ -450,6 +486,8 @@ module "cardiff_email_server" {
   private_ip         = "10.20.10.11"
   key_name           = var.key_name
   security_group_ids = [module.sg_cardiff_email_server.security_group_id]
+  monitoring         = true # Enable detailed monitoring
+  enable_backup      = true # Email data is critical
   tags               = { Site = "cardiff", Role = "email-server", Environment = "sandbox" }
 }
 
@@ -462,6 +500,8 @@ module "cardiff_security_server" {
   private_ip         = "10.20.10.12"
   key_name           = var.key_name
   security_group_ids = [module.sg_cardiff_security_server.security_group_id]
+  monitoring         = true # Enable detailed monitoring
+  enable_backup      = true # Security server is critical
   tags               = { Site = "cardiff", Role = "security-server", Environment = "sandbox" }
 }
 
@@ -474,6 +514,8 @@ module "cardiff_dhcp_server" {
   private_ip         = "10.20.10.13"
   key_name           = var.key_name
   security_group_ids = [module.sg_cardiff_dhcp_server.security_group_id]
+  monitoring         = false # Less critical
+  enable_backup      = false # Less critical
   tags               = { Site = "cardiff", Role = "dhcp-server", Environment = "sandbox" }
 }
 
@@ -523,5 +565,128 @@ module "llanelli_alb" {
   target_ids      = [module.llanelli_web_server.instance_id]
   target_port     = 80
   listener_port   = 80
-  tags            = { Site = "llanelli", Role = "alb", Environment = "sandbox" }
+
+  # Enable ALB Access Logging
+  enable_access_logs         = true
+  access_logs_bucket_name    = "llanelli-alb-logs-sandbox"
+  access_logs_retention_days = 30
+
+  tags = { Site = "llanelli", Role = "alb", Environment = "sandbox" }
+}
+# ===========================
+# Backup Configuration
+# ===========================
+
+# Llanelli Backup Plan
+module "llanelli_backup" {
+  source = "../../modules/backup"
+
+  vault_name = "llanelli-backup-vault"
+  plan_name  = "llanelli-daily-backup"
+
+  backup_schedule       = "cron(0 2 * * ? *)" # 2 AM UTC
+  retention_days        = 30
+  enable_weekly_backup  = true
+  weekly_retention_days = 90
+
+  backup_tag_key   = "Backup"
+  backup_tag_value = "true"
+
+  tags = {
+    Site        = "Llanelli"
+    Environment = "sandbox"
+  }
+}
+
+# Cardiff Backup Plan
+module "cardiff_backup" {
+  source = "../../modules/backup"
+
+  vault_name = "cardiff-backup-vault"
+  plan_name  = "cardiff-daily-backup"
+
+  backup_schedule       = "cron(0 3 * * ? *)" # 3 AM UTC (staggered)
+  retention_days        = 30
+  enable_weekly_backup  = true
+  weekly_retention_days = 90
+
+  backup_tag_key   = "Backup"
+  backup_tag_value = "true"
+
+  tags = {
+    Site        = "Cardiff"
+    Environment = "sandbox"
+  }
+}
+
+# ===========================
+# CloudWatch Alarms & Monitoring
+# ===========================
+
+# Llanelli CloudWatch Alarms
+module "llanelli_alarms" {
+  source = "../../modules/cloudwatch_alarms"
+
+  sns_topic_name = "llanelli-infrastructure-alarms"
+  email_endpoints = [
+    "ops-team@welshblanketfactory.com"
+  ]
+
+  # Map instance names to IDs
+  instance_ids = {
+    file-server      = module.llanelli_file_server.instance_id
+    developer-server = module.llanelli_developer_server.instance_id
+    web-server       = module.llanelli_web_server.instance_id
+    dhcp-server      = module.llanelli_dhcp_server.instance_id
+  }
+
+  # ALB monitoring
+  target_group_arns = {
+    web-servers = module.llanelli_alb.target_group_arn
+  }
+  load_balancer_arn = module.llanelli_alb.alb_arn
+
+  # Thresholds
+  cpu_threshold           = 80
+  response_time_threshold = 2.0
+  error_5xx_threshold     = 10
+
+  # Advanced monitoring (requires CloudWatch Agent installation)
+  enable_disk_monitoring   = false # Enable after agent installed
+  enable_memory_monitoring = false # Enable after agent installed
+
+  tags = {
+    Site        = "Llanelli"
+    Environment = "sandbox"
+  }
+}
+
+# Cardiff CloudWatch Alarms
+module "cardiff_alarms" {
+  source = "../../modules/cloudwatch_alarms"
+
+  sns_topic_name = "cardiff-infrastructure-alarms"
+  email_endpoints = [
+    "ops-team@welshblanketfactory.com"
+  ]
+
+  instance_ids = {
+    backup-server   = module.cardiff_backup_server.instance_id
+    email-server    = module.cardiff_email_server.instance_id
+    security-server = module.cardiff_security_server.instance_id
+    dhcp-server     = module.cardiff_dhcp_server.instance_id
+  }
+
+  cpu_threshold = 80
+
+  # Cardiff doesn't have an ALB currently, so these are omitted
+  # If/when Cardiff receives an ALB, add target_group_arns and load_balancer_arn here
+
+  enable_disk_monitoring   = false
+  enable_memory_monitoring = false
+
+  tags = {
+    Site        = "Cardiff"
+    Environment = "sandbox"
+  }
 }

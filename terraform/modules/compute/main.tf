@@ -17,6 +17,14 @@ resource "aws_instance" "this" {
     encrypted             = true
   }
 
-  tags        = merge(var.tags, { Name = var.name })
-  volume_tags = merge(var.tags, { Name = "${var.name}-root-volume" })
+  tags = merge(
+    var.tags,
+    { Name = var.name },
+    var.enable_backup ? { Backup = "true" } : {}
+  )
+  volume_tags = merge(
+    var.tags,
+    { Name = "${var.name}-root-volume" },
+    var.enable_backup ? { Backup = "true" } : {}
+  )
 }

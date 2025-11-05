@@ -61,42 +61,39 @@ resource "aws_route_table_association" "public_assoc" {
   route_table_id = aws_route_table.public.id
 }
 
-resource "aws_route_table" "private" {
-  vpc_id = aws_vpc.this.id
-  tags   = merge(var.tags, { Name = "${var.name}-rt-private" })
-}
-
-resource "aws_route_table_association" "private_assoc" {
-  for_each       = aws_subnet.private
-  subnet_id      = each.value.id
-  route_table_id = aws_route_table.private.id
-}
-
+# Create one NAT gateway per availability zone for high availability
 resource "aws_eip" "nat" {
-  count      = var.enable_nat ? 1 : 0
-  depends_on = [aws_internet_gateway.this]
-  tags       = merge(var.tags, { Name = "${var.name}-nat-eip" })
+  count  = var.enable_nat ? length(var.azs) : 0
+  domain = "vpc"
+  tags   = merge(var.tags, { Name = "${var.name}-nat-eip-${var.azs[count.index]}" })
 }
 
-locals {
-  public_subnet_ids = [
-    for s in aws_subnet.public : s.id
-  ]
-}
-
-resource "aws_nat_gateway" "nat" {
-  count         = var.enable_nat ? 1 : 0
-  allocation_id = aws_eip.nat[0].id
-  subnet_id     = local.public_subnet_ids[0]
-  tags          = merge(var.tags, { Name = "${var.name}-nat" })
+resource "aws_nat_gateway" "main" {
+  count         = var.enable_nat ? length(var.azs) : 0
+  allocation_id = aws_eip.nat[count.index].id
+  subnet_id     = aws_subnet.public[tostring(count.index)].id
+  tags          = merge(var.tags, { Name = "${var.name}-nat-${var.azs[count.index]}" })
   depends_on    = [aws_internet_gateway.this]
 }
 
+# Create separate route table for each private subnet (one per AZ)
+resource "aws_route_table" "private" {
+  count  = length(var.azs)
+  vpc_id = aws_vpc.this.id
+  tags   = merge(var.tags, { Name = "${var.name}-private-rt-${var.azs[count.index]}" })
+}
+
 resource "aws_route" "private_nat" {
-  count                  = var.enable_nat ? 1 : 0
-  route_table_id         = aws_route_table.private.id
+  count                  = var.enable_nat ? length(var.azs) : 0
+  route_table_id         = aws_route_table.private[count.index].id
   destination_cidr_block = "0.0.0.0/0"
-  nat_gateway_id         = aws_nat_gateway.nat[0].id
+  nat_gateway_id         = aws_nat_gateway.main[count.index].id
+}
+
+resource "aws_route_table_association" "private_assoc" {
+  count          = length(var.private_subnets)
+  subnet_id      = aws_subnet.private[tostring(count.index)].id
+  route_table_id = aws_route_table.private[count.index % length(var.azs)].id
 }
 
 resource "aws_route_table" "management" {
@@ -135,4 +132,74 @@ resource "aws_route_table_association" "guest_assoc" {
   count          = var.guest_subnet != "" ? 1 : 0
   subnet_id      = aws_subnet.guest[0].id
   route_table_id = aws_route_table.guest[0].id
+}
+
+# VPC Flow Logs
+# CloudWatch Log Group for VPC Flow Logs
+resource "aws_cloudwatch_log_group" "flow_logs" {
+  count             = var.enable_flow_logs ? 1 : 0
+  name              = "/aws/vpc/flowlogs/${var.name}"
+  retention_in_days = var.flow_logs_retention_days
+  tags              = merge(var.tags, { Name = "${var.name}-flow-logs" })
+}
+
+# IAM Role for VPC Flow Logs
+resource "aws_iam_role" "flow_logs" {
+  count              = var.enable_flow_logs ? 1 : 0
+  name               = "${var.name}-flow-logs-role"
+  assume_role_policy = data.aws_iam_policy_document.flow_logs_assume_role[0].json
+  tags               = var.tags
+}
+
+data "aws_iam_policy_document" "flow_logs_assume_role" {
+  count = var.enable_flow_logs ? 1 : 0
+
+  statement {
+    effect = "Allow"
+
+    principals {
+      type        = "Service"
+      identifiers = ["vpc-flow-logs.amazonaws.com"]
+    }
+
+    actions = ["sts:AssumeRole"]
+  }
+}
+
+# IAM Policy for Flow Logs to write to CloudWatch
+resource "aws_iam_role_policy" "flow_logs" {
+  count  = var.enable_flow_logs ? 1 : 0
+  name   = "${var.name}-flow-logs-policy"
+  role   = aws_iam_role.flow_logs[0].id
+  policy = data.aws_iam_policy_document.flow_logs_policy[0].json
+}
+
+data "aws_iam_policy_document" "flow_logs_policy" {
+  count = var.enable_flow_logs ? 1 : 0
+
+  statement {
+    effect = "Allow"
+
+    actions = [
+      "logs:CreateLogGroup",
+      "logs:CreateLogStream",
+      "logs:PutLogEvents",
+      "logs:DescribeLogGroups",
+      "logs:DescribeLogStreams",
+    ]
+
+    resources = ["${aws_cloudwatch_log_group.flow_logs[0].arn}:*"]
+  }
+}
+
+# VPC Flow Log
+resource "aws_flow_log" "main" {
+  count                    = var.enable_flow_logs ? 1 : 0
+  iam_role_arn             = aws_iam_role.flow_logs[0].arn
+  log_destination          = aws_cloudwatch_log_group.flow_logs[0].arn
+  traffic_type             = var.flow_logs_traffic_type
+  vpc_id                   = aws_vpc.this.id
+  max_aggregation_interval = var.flow_logs_max_aggregation_interval
+
+  tags = merge(var.tags, { Name = "${var.name}-flow-log" })
 }
