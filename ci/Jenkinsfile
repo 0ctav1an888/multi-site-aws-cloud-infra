@@ -1,0 +1,27 @@
+pipeline {
+    agent any
+
+    stages {
+        stage('Terraform Validation') {
+            steps {
+                echo "Running Terraform Validation Commands"
+                dir('terraform/envs/sandbox') {
+                    sh """
+                        terraform init -input=false
+                        terraform validate
+                        terraform plan -input=false
+                    """
+                }
+            }
+        }
+
+        stage('Ansible Config') {
+            steps {
+                echo """Launching Main Ansible Playbook"""
+                dir('ansible') {
+                    sh "ansible-playbook -i inventory/hosts.yml playbooks/site.yml"
+                }
+            }
+        }
+    }
+}

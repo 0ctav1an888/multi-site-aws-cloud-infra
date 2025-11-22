@@ -1,4 +1,3 @@
-# S3 Bucket for ALB Access Logs
 resource "aws_s3_bucket" "alb_logs" {
   count  = var.enable_access_logs ? 1 : 0
   bucket = var.access_logs_bucket_name

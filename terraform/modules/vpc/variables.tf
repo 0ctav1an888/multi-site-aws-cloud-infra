@@ -64,7 +64,7 @@ variable "enable_flow_logs" {
 variable "flow_logs_retention_days" {
   description = "Number of days to retain flow logs"
   type        = number
-  default     = 7 # 7 days for cost optimization, increase for compliance needs
+  default     = 7 
 }
 
 variable "flow_logs_traffic_type" {
@@ -81,7 +81,7 @@ variable "flow_logs_traffic_type" {
 variable "flow_logs_max_aggregation_interval" {
   description = "Maximum interval for aggregating flow logs (60 or 600 seconds)"
   type        = number
-  default     = 600 # 10 minutes for cost optimization
+  default     = 600
 
   validation {
     condition     = contains([60, 600], var.flow_logs_max_aggregation_interval)

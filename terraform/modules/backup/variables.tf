@@ -11,7 +11,7 @@ variable "plan_name" {
 variable "backup_schedule" {
   description = "Cron expression for backup schedule"
   type        = string
-  default     = "cron(0 2 * * ? *)" # 2 AM UTC daily
+  default     = "cron(0 2 * * ? *)" # 2AM daily
 }
 
 variable "retention_days" {

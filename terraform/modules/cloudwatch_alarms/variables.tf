@@ -45,11 +45,10 @@ variable "cpu_evaluation_periods" {
   default     = 2
 }
 
-# Disk Alarm Configuration
 variable "enable_disk_monitoring" {
   description = "Enable disk space monitoring (requires CloudWatch Agent)"
   type        = bool
-  default     = false # Requires agent installation
+  default     = false 
 }
 
 variable "disk_threshold" {
@@ -58,11 +57,10 @@ variable "disk_threshold" {
   default     = 85
 }
 
-# Memory Alarm Configuration
 variable "enable_memory_monitoring" {
   description = "Enable memory monitoring (requires CloudWatch Agent)"
   type        = bool
-  default     = false # Requires agent installation
+  default     = false #
 }
 
 variable "memory_threshold" {
@@ -71,7 +69,6 @@ variable "memory_threshold" {
   default     = 85
 }
 
-# ALB Alarm Configuration
 variable "response_time_threshold" {
   description = "Target response time threshold in seconds"
   type        = number

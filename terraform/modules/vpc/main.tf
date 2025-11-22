@@ -22,7 +22,6 @@ resource "aws_internet_gateway" "this" {
   tags   = merge(var.tags, { Name = "${var.name}-igw" })
 }
 
-# Public Subnet
 resource "aws_subnet" "public" {
   for_each                = local.public_map
   vpc_id                  = aws_vpc.this.id
@@ -32,7 +31,6 @@ resource "aws_subnet" "public" {
   tags                    = merge(var.tags, { Name = "${var.name}-public-${each.key}" })
 }
 
-# DMZ Subnet
 resource "aws_subnet" "dmz" {
   for_each                = local.dmz_map
   vpc_id                  = aws_vpc.this.id
@@ -42,7 +40,6 @@ resource "aws_subnet" "dmz" {
   tags                    = merge(var.tags, { Name = "${var.name}-dmz-${each.key}" })
 }
 
-# Private Subnet
 resource "aws_subnet" "private" {
   for_each          = local.private_map
   vpc_id            = aws_vpc.this.id
@@ -51,7 +48,6 @@ resource "aws_subnet" "private" {
   tags              = merge(var.tags, { Name = "${var.name}-private-${each.key}" })
 }
 
-# Management Subnet
 resource "aws_subnet" "management" {
   vpc_id            = aws_vpc.this.id
   cidr_block        = var.management_subnet
@@ -59,7 +55,6 @@ resource "aws_subnet" "management" {
   tags              = merge(var.tags, { Name = "${var.name}-management" })
 }
 
-# Public Route Table
 resource "aws_route_table" "public" {
   vpc_id = aws_vpc.this.id
   tags   = merge(var.tags, { Name = "${var.name}-rt-public" })
@@ -77,7 +72,6 @@ resource "aws_route_table_association" "public_assoc" {
   route_table_id = aws_route_table.public.id
 }
 
-# DMZ Route Table
 resource "aws_route_table" "dmz" {
   count  = length(var.dmz_subnets) > 0 ? 1 : 0
   vpc_id = aws_vpc.this.id
@@ -194,7 +188,6 @@ resource "aws_network_acl_association" "dmz" {
   subnet_id      = aws_subnet.dmz[tostring(count.index)].id
 }
 
-# Create one NAT gateway per availability zone for high availability
 resource "aws_eip" "nat" {
   count  = var.enable_nat ? length(var.azs) : 0
   domain = "vpc"
@@ -209,7 +202,6 @@ resource "aws_nat_gateway" "main" {
   depends_on    = [aws_internet_gateway.this]
 }
 
-# Create separate route table for each private subnet (one per AZ)
 resource "aws_route_table" "private" {
   count  = length(var.azs)
   vpc_id = aws_vpc.this.id
@@ -239,7 +231,6 @@ resource "aws_route_table_association" "management_assoc" {
   route_table_id = aws_route_table.management.id
 }
 
-# Guest Wi-Fi Subnet
 resource "aws_subnet" "guest" {
   count             = var.guest_subnet != "" ? 1 : 0
   vpc_id            = aws_vpc.this.id
@@ -319,8 +310,6 @@ resource "aws_network_acl_association" "guest" {
   subnet_id      = aws_subnet.guest[0].id
 }
 
-# VPC Flow Logs
-# CloudWatch Log Group for VPC Flow Logs
 resource "aws_cloudwatch_log_group" "flow_logs" {
   count             = var.enable_flow_logs ? 1 : 0
   name              = "/aws/vpc/flowlogs/${var.name}"
@@ -328,7 +317,6 @@ resource "aws_cloudwatch_log_group" "flow_logs" {
   tags              = merge(var.tags, { Name = "${var.name}-flow-logs" })
 }
 
-# IAM Role for VPC Flow Logs
 resource "aws_iam_role" "flow_logs" {
   count              = var.enable_flow_logs ? 1 : 0
   name               = "${var.name}-flow-logs-role"
@@ -351,7 +339,6 @@ data "aws_iam_policy_document" "flow_logs_assume_role" {
   }
 }
 
-# IAM Policy for Flow Logs to write to CloudWatch
 resource "aws_iam_role_policy" "flow_logs" {
   count  = var.enable_flow_logs ? 1 : 0
   name   = "${var.name}-flow-logs-policy"
@@ -377,7 +364,6 @@ data "aws_iam_policy_document" "flow_logs_policy" {
   }
 }
 
-# VPC Flow Log
 resource "aws_flow_log" "main" {
   count                    = var.enable_flow_logs ? 1 : 0
   iam_role_arn             = aws_iam_role.flow_logs[0].arn
