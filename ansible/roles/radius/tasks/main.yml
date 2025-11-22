@@ -1,0 +1,30 @@
+- name: Install FreeRADIUS packages
+  ansible.builtin.yum:
+    name:
+      - freeradius
+      - freeradius-utils
+    state: present
+
+- name: Deploy RADIUS clients configuration
+  ansible.builtin.template:
+    src: clients.conf.j2
+    dest: /etc/raddb/clients.conf
+    owner: root
+    group: root
+    mode: '0640'
+  notify: restart radiusd
+
+- name: Configure local RADIUS users
+  ansible.builtin.template:
+    src: users.j2
+    dest: /etc/raddb/mods-config/files/authorize
+    owner: root
+    group: root
+    mode: '0640'
+  notify: restart radiusd
+
+- name: Ensure radiusd service is enabled and running
+  ansible.builtin.service:
+    name: radiusd
+    state: started
+    enabled: yes

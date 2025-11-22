@@ -8,6 +8,11 @@ output "public_subnet_ids" {
   value       = [for s in aws_subnet.public : s.id]
 }
 
+output "dmz_subnet_ids" {
+  description = "List of DMZ subnet ids"
+  value       = length(aws_subnet.dmz) > 0 ? [for s in aws_subnet.dmz : s.id] : []
+}
+
 output "private_subnet_ids" {
   description = "List of private subnet ids"
   value       = [for s in aws_subnet.private : s.id]
@@ -21,6 +26,11 @@ output "management_subnet_id" {
 output "public_subnet_cidrs" {
   description = "Public subnet CIDRs"
   value       = [for s in aws_subnet.public : s.cidr_block]
+}
+
+output "dmz_subnet_cidrs" {
+  description = "DMZ subnet CIDRs"
+  value       = length(aws_subnet.dmz) > 0 ? [for s in aws_subnet.dmz : s.cidr_block] : []
 }
 
 output "private_subnet_cidrs" {
@@ -46,6 +56,16 @@ output "nat_gateway_ids" {
 output "public_route_table_id" {
   description = "Public route table id for the VPC"
   value       = aws_route_table.public.id
+}
+
+output "dmz_route_table_id" {
+  description = "Route table id for DMZ subnets"
+  value       = length(aws_route_table.dmz) > 0 ? aws_route_table.dmz[0].id : null
+}
+
+output "dmz_network_acl_id" {
+  description = "Network ACL id for DMZ subnets"
+  value       = length(aws_network_acl.dmz) > 0 ? aws_network_acl.dmz[0].id : null
 }
 
 output "guest_subnet_id" {

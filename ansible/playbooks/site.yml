@@ -1,8 +1,8 @@
 ---
 - name: Welsh Blanket Factory - Complete Infrastructure Testing Suite
   hosts: all
-  become: yes
-  gather_facts: yes
+  become: true
+  gather_facts: true
 
   tasks:
     - name: Display test suite banner
@@ -22,7 +22,7 @@
 
 - name: Display Phase 1 completion
   hosts: localhost
-  gather_facts: no
+  gather_facts: false
   tasks:
     - name: Phase 1 status
       ansible.builtin.debug:
@@ -36,7 +36,7 @@
 
 - name: Display Phase 2 completion
   hosts: localhost
-  gather_facts: no
+  gather_facts: false
   tasks:
     - name: Phase 2 status
       ansible.builtin.debug:
@@ -50,7 +50,7 @@
 
 - name: Display Phase 3 completion
   hosts: localhost
-  gather_facts: no
+  gather_facts: false
   tasks:
     - name: Phase 3 status
       ansible.builtin.debug:
@@ -64,7 +64,7 @@
 
 - name: Display Phase 4 completion
   hosts: localhost
-  gather_facts: no
+  gather_facts: false
   tasks:
     - name: Phase 4 status
       ansible.builtin.debug:
@@ -78,7 +78,7 @@
 
 - name: Display Phase 5 completion
   hosts: localhost
-  gather_facts: no
+  gather_facts: false
   tasks:
     - name: Phase 5 status
       ansible.builtin.debug:
@@ -89,15 +89,15 @@
 
 - name: Generate consolidated test report
   hosts: all
-  become: yes
-  gather_facts: yes
+  become: true
+  gather_facts: true
 
   tasks:
     - name: Fetch all test logs from remote servers
       ansible.builtin.fetch:
         src: "/var/log/ansible-tests/{{ item }}"
         dest: "./test-reports/{{ inventory_hostname }}/{{ item }}"
-        flat: yes
+        flat: true
       loop:
         - initial-setup.log
         - connectivity-test.log
@@ -153,7 +153,7 @@
 
 - name: Display final test suite summary
   hosts: localhost
-  gather_facts: no
+  gather_facts: false
   tasks:
     - name: Final summary
       ansible.builtin.debug:

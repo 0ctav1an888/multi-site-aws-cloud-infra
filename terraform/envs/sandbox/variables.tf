@@ -22,8 +22,17 @@ variable "llanelli_vpc_cidr" {
 
 variable "llanelli_public_subnets" {
   type        = list(string)
-  description = "List of CIDRs for public/DMZ subnets for Llanelli"
-  default     = ["10.10.20.0/24"]
+  description = "List of CIDRs for public subnets for Llanelli"
+  default     = ["10.10.40.0/24"]
+}
+
+variable "llanelli_dmz_subnets" {
+  type        = list(string)
+  description = "List of CIDRs for DMZ subnets for Llanelli"
+  default     = [
+    "10.10.20.0/25",
+    "10.10.20.128/25"
+  ]
 }
 
 variable "llanelli_private_subnets" {
@@ -44,6 +53,12 @@ variable "llanelli_guest_subnet" {
   default     = "10.10.30.0/24"
 }
 
+variable "llanelli_client_vpn_cidr" {
+  type        = string
+  description = "Client VPN address pool for Llanelli"
+  default     = "172.16.10.0/22"
+}
+
 # Cardiff VPC CIDR and Subnets
 
 variable "cardiff_vpc_cidr" {
@@ -54,8 +69,17 @@ variable "cardiff_vpc_cidr" {
 
 variable "cardiff_public_subnets" {
   type        = list(string)
-  description = "List of CIDRs for public/DMZ subnets in Cardiff"
-  default     = ["10.20.20.0/24"]
+  description = "List of CIDRs for public subnets in Cardiff"
+  default     = ["10.20.40.0/24"]
+}
+
+variable "cardiff_dmz_subnets" {
+  type        = list(string)
+  description = "List of CIDRs for DMZ subnets in Cardiff"
+  default     = [
+    "10.20.20.0/25",
+    "10.20.20.128/25"
+  ]
 }
 
 variable "cardiff_private_subnets" {
@@ -74,6 +98,12 @@ variable "cardiff_guest_subnet" {
   type        = string
   description = "CIDR for guest Wi-Fi subnet in Cardiff"
   default     = "10.20.30.0/24"
+}
+
+variable "cardiff_client_vpn_cidr" {
+  type        = string
+  description = "Client VPN address pool for Cardiff"
+  default     = "172.16.20.0/22"
 }
 
 # Global Controls
@@ -96,4 +126,16 @@ variable "key_name" {
   type        = string
   description = "SSH key pair name for EC2 instances"
   default     = "welsh-blanket-factory"
+}
+
+variable "route53_domain_name" {
+  type        = string
+  description = "Public domain name for the web application"
+  default     = "welshblanketfactory.com"
+}
+
+variable "route53_web_record_name" {
+  type        = string
+  description = "Web record name within the Route53 zone"
+  default     = "www"
 }

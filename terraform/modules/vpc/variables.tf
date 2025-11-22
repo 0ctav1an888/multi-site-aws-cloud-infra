@@ -14,6 +14,12 @@ variable "public_subnets" {
   default     = []
 }
 
+variable "dmz_subnets" {
+  type        = list(string)
+  description = "List of CIDRs for DMZ subnets"
+  default     = []
+}
+
 variable "private_subnets" {
   type        = list(string)
   description = "List of CIDRs for private subnets"

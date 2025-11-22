@@ -1,8 +1,8 @@
----
+
 - name: Security group and firewall validation
   hosts: all
-  become: yes
-  gather_facts: yes
+  become: true
+  gather_facts: true
 
   tasks:
     - name: Check if firewalld is installed
@@ -92,3 +92,30 @@
           Kernel: {{ ansible_kernel }}
         dest: /var/log/ansible-tests/security-validation.log
         mode: '0644'
+
+    - name: Prepare client VPN distribution package
+      block:
+        - name: Ensure VPN config directory exists locally
+          ansible.builtin.file:
+            path: "{{ client_vpn_config_dir }}"
+            state: directory
+            mode: '0755'
+
+        - name: Read exported VPN base profile
+          ansible.builtin.slurp:
+            src: "{{ client_vpn_config_dir }}/client-vpn-base.ovpn"
+          register: vpn_base_profile
+
+        - name: Write branded VPN profile
+          ansible.builtin.copy:
+            dest: "{{ client_vpn_config_dir }}/client-vpn-profile.ovpn"
+            mode: '0644'
+            content: |
+              # Welsh Blanket Factory Client VPN Profile
+              # Generated {{ ansible_date_time.iso8601 }}
+              {{ vpn_base_profile.content | b64decode }}
+              setenv COMPANY "WelshBlanketFactory"
+              setenv RADIUS_PROXY "radius.{{ route53_domain_name }}"
+              reneg-sec 0
+      run_once: true
+      delegate_to: localhost

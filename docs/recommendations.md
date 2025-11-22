@@ -65,3 +65,4 @@ There are no alarms configured to notify you when problems occur (server failure
 
 - Added VPC Flow Logs by adding aws_flow_log resources
 - CloudWatch was added and enabled in instances to monitor 
+- Enabled monitoring and backup for each module in the sandbox environment

@@ -1,7 +1,13 @@
 locals {
-  public_map  = { for idx, cidr in var.public_subnets : tostring(idx) => cidr }
-  private_map = { for idx, cidr in var.private_subnets : tostring(idx) => cidr }
-  az_count    = length(var.azs)
+  public_map        = { for idx, cidr in var.public_subnets : tostring(idx) => cidr }
+  dmz_map           = { for idx, cidr in var.dmz_subnets : tostring(idx) => cidr }
+  private_map       = { for idx, cidr in var.private_subnets : tostring(idx) => cidr }
+  az_count          = length(var.azs)
+  guest_blocked_cidrs = [
+    "10.0.0.0/8",
+    "172.16.0.0/12",
+    "192.168.0.0/16"
+  ]
 }
 
 resource "aws_vpc" "this" {
@@ -24,6 +30,16 @@ resource "aws_subnet" "public" {
   availability_zone       = var.azs[tonumber(each.key) % local.az_count]
   map_public_ip_on_launch = true
   tags                    = merge(var.tags, { Name = "${var.name}-public-${each.key}" })
+}
+
+# DMZ Subnet
+resource "aws_subnet" "dmz" {
+  for_each                = local.dmz_map
+  vpc_id                  = aws_vpc.this.id
+  cidr_block              = each.value
+  availability_zone       = var.azs[tonumber(each.key) % local.az_count]
+  map_public_ip_on_launch = true
+  tags                    = merge(var.tags, { Name = "${var.name}-dmz-${each.key}" })
 }
 
 # Private Subnet
@@ -59,6 +75,123 @@ resource "aws_route_table_association" "public_assoc" {
   for_each       = aws_subnet.public
   subnet_id      = each.value.id
   route_table_id = aws_route_table.public.id
+}
+
+# DMZ Route Table
+resource "aws_route_table" "dmz" {
+  count  = length(var.dmz_subnets) > 0 ? 1 : 0
+  vpc_id = aws_vpc.this.id
+  tags   = merge(var.tags, { Name = "${var.name}-rt-dmz" })
+}
+
+resource "aws_route" "dmz_internet" {
+  count                  = length(var.dmz_subnets) > 0 ? 1 : 0
+  route_table_id         = aws_route_table.dmz[0].id
+  destination_cidr_block = "0.0.0.0/0"
+  gateway_id             = aws_internet_gateway.this.id
+}
+
+resource "aws_route_table_association" "dmz_assoc" {
+  count          = length(var.dmz_subnets)
+  subnet_id      = aws_subnet.dmz[tostring(count.index)].id
+  route_table_id = aws_route_table.dmz[0].id
+}
+
+resource "aws_network_acl" "dmz" {
+  count  = length(var.dmz_subnets) > 0 ? 1 : 0
+  vpc_id = aws_vpc.this.id
+
+  tags = merge(var.tags, { Name = "${var.name}-dmz-acl" })
+}
+
+resource "aws_network_acl_rule" "dmz_inbound_http" {
+  count          = length(var.dmz_subnets) > 0 ? 1 : 0
+  network_acl_id = aws_network_acl.dmz[0].id
+  rule_number    = 100
+  egress         = false
+  protocol       = "tcp"
+  rule_action    = "allow"
+  cidr_block     = "0.0.0.0/0"
+  from_port      = 80
+  to_port        = 80
+}
+
+resource "aws_network_acl_rule" "dmz_inbound_https" {
+  count          = length(var.dmz_subnets) > 0 ? 1 : 0
+  network_acl_id = aws_network_acl.dmz[0].id
+  rule_number    = 110
+  egress         = false
+  protocol       = "tcp"
+  rule_action    = "allow"
+  cidr_block     = "0.0.0.0/0"
+  from_port      = 443
+  to_port        = 443
+}
+
+resource "aws_network_acl_rule" "dmz_inbound_ssh" {
+  count          = length(var.dmz_subnets) > 0 ? 1 : 0
+  network_acl_id = aws_network_acl.dmz[0].id
+  rule_number    = 120
+  egress         = false
+  protocol       = "tcp"
+  rule_action    = "allow"
+  cidr_block     = var.cidr
+  from_port      = 22
+  to_port        = 22
+}
+
+resource "aws_network_acl_rule" "dmz_inbound_ephemeral" {
+  count          = length(var.dmz_subnets) > 0 ? 1 : 0
+  network_acl_id = aws_network_acl.dmz[0].id
+  rule_number    = 130
+  egress         = false
+  protocol       = "tcp"
+  rule_action    = "allow"
+  cidr_block     = "0.0.0.0/0"
+  from_port      = 1024
+  to_port        = 65535
+}
+
+resource "aws_network_acl_rule" "dmz_outbound_http" {
+  count          = length(var.dmz_subnets) > 0 ? 1 : 0
+  network_acl_id = aws_network_acl.dmz[0].id
+  rule_number    = 100
+  egress         = true
+  protocol       = "tcp"
+  rule_action    = "allow"
+  cidr_block     = "0.0.0.0/0"
+  from_port      = 80
+  to_port        = 80
+}
+
+resource "aws_network_acl_rule" "dmz_outbound_https" {
+  count          = length(var.dmz_subnets) > 0 ? 1 : 0
+  network_acl_id = aws_network_acl.dmz[0].id
+  rule_number    = 110
+  egress         = true
+  protocol       = "tcp"
+  rule_action    = "allow"
+  cidr_block     = "0.0.0.0/0"
+  from_port      = 443
+  to_port        = 443
+}
+
+resource "aws_network_acl_rule" "dmz_outbound_ephemeral" {
+  count          = length(var.dmz_subnets) > 0 ? 1 : 0
+  network_acl_id = aws_network_acl.dmz[0].id
+  rule_number    = 120
+  egress         = true
+  protocol       = "tcp"
+  rule_action    = "allow"
+  cidr_block     = "0.0.0.0/0"
+  from_port      = 1024
+  to_port        = 65535
+}
+
+resource "aws_network_acl_association" "dmz" {
+  count          = length(var.dmz_subnets)
+  network_acl_id = aws_network_acl.dmz[0].id
+  subnet_id      = aws_subnet.dmz[tostring(count.index)].id
 }
 
 # Create one NAT gateway per availability zone for high availability
@@ -132,6 +265,58 @@ resource "aws_route_table_association" "guest_assoc" {
   count          = var.guest_subnet != "" ? 1 : 0
   subnet_id      = aws_subnet.guest[0].id
   route_table_id = aws_route_table.guest[0].id
+}
+
+resource "aws_network_acl" "guest" {
+  count  = var.guest_subnet != "" ? 1 : 0
+  vpc_id = aws_vpc.this.id
+  tags   = merge(var.tags, { Name = "${var.name}-guest-acl" })
+}
+
+resource "aws_network_acl_rule" "guest_inbound_deny_rfc1918" {
+  count          = var.guest_subnet != "" ? length(local.guest_blocked_cidrs) : 0
+  network_acl_id = aws_network_acl.guest[0].id
+  rule_number    = 100 + count.index
+  egress         = false
+  protocol       = "-1"
+  rule_action    = "deny"
+  cidr_block     = local.guest_blocked_cidrs[count.index]
+}
+
+resource "aws_network_acl_rule" "guest_outbound_deny_rfc1918" {
+  count          = var.guest_subnet != "" ? length(local.guest_blocked_cidrs) : 0
+  network_acl_id = aws_network_acl.guest[0].id
+  rule_number    = 100 + count.index
+  egress         = true
+  protocol       = "-1"
+  rule_action    = "deny"
+  cidr_block     = local.guest_blocked_cidrs[count.index]
+}
+
+resource "aws_network_acl_rule" "guest_inbound_allow_internet" {
+  count          = var.guest_subnet != "" ? 1 : 0
+  network_acl_id = aws_network_acl.guest[0].id
+  rule_number    = 200
+  egress         = false
+  protocol       = "-1"
+  rule_action    = "allow"
+  cidr_block     = "0.0.0.0/0"
+}
+
+resource "aws_network_acl_rule" "guest_outbound_allow_internet" {
+  count          = var.guest_subnet != "" ? 1 : 0
+  network_acl_id = aws_network_acl.guest[0].id
+  rule_number    = 200
+  egress         = true
+  protocol       = "-1"
+  rule_action    = "allow"
+  cidr_block     = "0.0.0.0/0"
+}
+
+resource "aws_network_acl_association" "guest" {
+  count          = var.guest_subnet != "" ? 1 : 0
+  network_acl_id = aws_network_acl.guest[0].id
+  subnet_id      = aws_subnet.guest[0].id
 }
 
 # VPC Flow Logs

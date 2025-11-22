@@ -93,8 +93,21 @@ resource "aws_lb_listener" "http" {
   protocol          = var.listener_protocol
 
   default_action {
-    type             = "forward"
-    target_group_arn = aws_lb_target_group.this.arn
+    type = "forward"
+
+    forward {
+      target_group {
+        arn = aws_lb_target_group.this.arn
+      }
+
+      dynamic "target_group" {
+        for_each = var.additional_target_group_arns
+
+        content {
+          arn = target_group.value
+        }
+      }
+    }
   }
 }
 

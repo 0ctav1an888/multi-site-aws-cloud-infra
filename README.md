@@ -10,12 +10,13 @@ This project implements a production-ready cloud infrastructure for Welsh Blanke
 
 - **Two VPCs**: Llanelli (10.10.0.0/16) and Cardiff (10.20.0.0/16)
 - **VPC Peering**: Full bi-directional connectivity with configured routes
-- **Subnet Types**: Public/DMZ, Private/App, Management, Guest Wi-Fi (isolated)
+- **Subnet Types**: Dedicated Public Edge, dual AZ DMZ fabrics, Private/App, Management, Guest Wi-Fi (isolated)
 - **8 Application Servers**: File, Developer, Web, DHCP, Backup, Email, Security servers
 - **Static IP Allocation**: Predictable IP addresses for all servers
-- **Load Balancing**: Application Load Balancer for web traffic
+- **Web Tier**: Auto Scaling Groups per site with cross-site Route53 failover and ALBs anchored in the DMZ
 - **Security**: Dedicated security groups with SSH access for management
-- **VPN Support**: Site-to-Site VPN capability
+- **VPN Support**: Client VPN endpoints for home workers plus Site-to-Site capability
+- **RADIUS**: Centralized FreeRADIUS servers in both sites backing VPN, guest Wi-Fi, and device access
 - **Automated Testing**: 5-phase Ansible test suite for validation
 
 ## Prerequisites
@@ -495,6 +496,7 @@ terraform destroy
 - [terraform/modules/vpn/README.md](terraform/modules/vpn/README.md) - VPN module documentation
 - [docs/cloud-design.md](docs/cloud-design.md) - Architecture design document
 - [docs/ip-plan.md](docs/ip-plan.md) - IP addressing plan
+- [docs/security-expansion.md](docs/security-expansion.md) - DMZ, RADIUS, VPN, and Wi-Fi implementation summary
 
 ## Version History
 

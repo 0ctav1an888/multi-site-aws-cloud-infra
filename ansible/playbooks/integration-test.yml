@@ -1,8 +1,8 @@
----
+
 - name: Integration testing for multi-site architecture
   hosts: all
-  become: yes
-  gather_facts: yes
+  become: true
+  gather_facts: true
 
   tasks:
     - name: Verify VPC peering connectivity by testing cross-site ping

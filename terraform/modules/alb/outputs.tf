@@ -8,6 +8,11 @@ output "alb_arn" {
   value       = aws_lb.this.arn
 }
 
+output "alb_arn_suffix" {
+  description = "ALB ARN suffix"
+  value       = aws_lb.this.arn_suffix
+}
+
 output "alb_dns_name" {
   description = "ALB DNS name"
   value       = aws_lb.this.dns_name
@@ -21,6 +26,11 @@ output "alb_zone_id" {
 output "target_group_arn" {
   description = "Target group ARN"
   value       = aws_lb_target_group.this.arn
+}
+
+output "target_group_arn_suffix" {
+  description = "Target group ARN suffix"
+  value       = aws_lb_target_group.this.arn_suffix
 }
 
 output "target_group_id" {

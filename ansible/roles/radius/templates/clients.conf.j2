@@ -1,0 +1,8 @@
+## Managed by Ansible - RADIUS clients
+{% for client in radius_clients %}
+client {{ client.name }} {
+    ipaddr = {{ client.network }}
+    secret = {{ radius_shared_secret }}
+    require_message_authenticator = no
+}
+{% endfor %}

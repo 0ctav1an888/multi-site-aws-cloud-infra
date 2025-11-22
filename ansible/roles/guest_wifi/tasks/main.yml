@@ -1,0 +1,48 @@
+
+- name: Install firewalld for guest Wi-Fi control
+  ansible.builtin.yum:
+    name: firewalld
+    state: present
+
+- name: Ensure firewalld is enabled
+  ansible.builtin.service:
+    name: firewalld
+    state: started
+    enabled: yes
+
+- name: Allow management access to guest gateway
+  ansible.posix.firewalld:
+    rich_rule: 'rule family="ipv4" source address={{ management_cidr }} service name="ssh" accept'
+    permanent: yes
+    immediate: yes
+    state: enabled
+  vars:
+    management_cidr: "{{ subnets.management }}"
+
+- name: Allow HTTPS management access
+  ansible.posix.firewalld:
+    rich_rule: 'rule family="ipv4" source address={{ management_cidr }} service name="https" accept'
+    permanent: yes
+    immediate: yes
+    state: enabled
+  vars:
+    management_cidr: "{{ subnets.management }}"
+
+- name: Block RFC1918 networks from guest Wi-Fi
+  ansible.posix.firewalld:
+    rich_rule: 'rule family="ipv4" destination address={{ item }} drop'
+    permanent: yes
+    immediate: yes
+    state: enabled
+  loop:
+    - 10.0.0.0/8
+    - 172.16.0.0/12
+    - 192.168.0.0/16
+
+- name: Document guest Wi-Fi policy
+  ansible.builtin.template:
+    src: policy.yml.j2
+    dest: /etc/guest-wifi-policy.yml
+    owner: root
+    group: root
+    mode: '0644'

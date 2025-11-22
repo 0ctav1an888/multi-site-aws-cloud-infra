@@ -1,4 +1,3 @@
----
 aws_region: eu-west-2
 environment: sandbox
 
@@ -23,3 +22,27 @@ ntp_servers:
   - 169.254.169.123
 
 cloudwatch_namespace: WelshBlanketFactory
+route53_domain_name: welshblanketfactory.com
+
+radius_shared_secret: welsh-blanket-shared-secret
+radius_clients:
+  - name: llanelli-private
+    network: 10.10.0.0/16
+  - name: cardiff-private
+    network: 10.20.0.0/16
+  - name: llanelli-guest
+    network: 10.10.30.0/24
+  - name: cardiff-guest
+    network: 10.20.30.0/24
+  - name: client-vpn-llanelli
+    network: 172.16.10.0/22
+  - name: client-vpn-cardiff
+    network: 172.16.20.0/22
+
+guest_wifi_policy:
+  captive_portal_message: "Welcome to Welsh Blanket Factory Guest Wi-Fi"
+  allowed_ports:
+    - 80
+    - 443
+
+client_vpn_config_dir: "{{ playbook_dir | dirname }}/../docs/vpn"

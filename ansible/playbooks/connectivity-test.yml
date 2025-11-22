@@ -1,8 +1,8 @@
----
+
 - name: Network connectivity testing
   hosts: all
-  become: yes
-  gather_facts: yes
+  become: true
+  gather_facts: true
 
   tasks:
     - name: Test internet connectivity
@@ -57,6 +57,15 @@
       changed_when: false
       failed_when: false
 
+    - name: Validate guest Wi-Fi isolation
+      ansible.builtin.command: ping -c 1 {{ guest_private_target }}
+      when: server_role == 'guest-wifi'
+      register: guest_wifi_isolation
+      changed_when: false
+      failed_when: guest_wifi_isolation.rc == 0
+      vars:
+        guest_private_target: "{{ '10.10.10.10' if server_site == 'llanelli' else '10.20.10.10' }}"
+
     - name: Generate connectivity report
       ansible.builtin.copy:
         content: |
@@ -95,5 +104,7 @@
             - {{ result.item }}: {{ 'PASS' if result.rc == 0 else 'FAIL' }}
           {% endfor %}
           {% endif %}
+
+          Guest Wi-Fi Isolation: {% if server_role == 'guest-wifi' %}{{ 'PASS' if guest_wifi_isolation.rc != 0 else 'FAIL' }}{% else %}N/A{% endif %}
         dest: /var/log/ansible-tests/connectivity-test.log
         mode: '0644'

@@ -1,0 +1,7 @@
+# Managed guest Wi-Fi portal policy
+message: "{{ guest_wifi_policy.captive_portal_message }}"
+allowed_ports:
+{% for port in guest_wifi_policy.allowed_ports %}
+  - {{ port }}
+{% endfor %}
+updated: {{ ansible_date_time.iso8601 }}

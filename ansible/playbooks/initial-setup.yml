@@ -1,8 +1,8 @@
----
+
 - name: Initial server setup and configuration
   hosts: all
-  become: yes
-  gather_facts: yes
+  become: true
+  gather_facts: true
 
   roles:
     - common
@@ -48,3 +48,18 @@
           Timezone: {{ timezone }}
         dest: /var/log/ansible-tests/initial-setup.log
         mode: '0644'
+
+    - name: Apply RADIUS hardening role
+      ansible.builtin.include_role:
+        name: radius
+      when: server_role == 'security-server'
+
+    - name: Configure Auto Scaling web node
+      ansible.builtin.include_role:
+        name: web
+      when: server_role == 'web'
+
+    - name: Configure guest Wi-Fi gateways
+      ansible.builtin.include_role:
+        name: guest_wifi
+      when: server_role == 'guest-wifi'

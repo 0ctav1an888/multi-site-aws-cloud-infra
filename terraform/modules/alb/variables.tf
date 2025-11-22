@@ -60,6 +60,12 @@ variable "target_ids" {
   default     = []
 }
 
+variable "additional_target_group_arns" {
+  type        = list(string)
+  description = "Additional target group ARNs to forward traffic to"
+  default     = []
+}
+
 variable "health_check_enabled" {
   type        = bool
   description = "Enable health checks"

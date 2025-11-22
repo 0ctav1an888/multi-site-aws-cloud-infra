@@ -5,3 +5,4 @@ myenv
 *.tfstate.backup
 .terraform.tfstate.lock.info
 .claude
+.myenv

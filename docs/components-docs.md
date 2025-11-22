@@ -82,6 +82,29 @@ Provisions EC2 instances with configurable specifications and security settings.
 - instance_state - Current instance state
 - security_group_ids - Attached security groups
 
+## ASG Module
+Creates an EC2 Auto Scaling Group via launch templates with scaling policies for CPU and ALB traffic.
+
+**Key Resources:**
+- Launch template with security controls
+- Auto Scaling Group spanning DMZ subnets
+- Target-tracking policies (CPU + ALB request count)
+
+**Required Inputs:**
+- name, ami, instance_type
+- subnet_ids, security_group_ids
+- desired_capacity/min_size/max_size
+
+**Optional Inputs:**
+- target_group_arns
+- CPU / ALB thresholds
+- Custom tags and block devices
+
+**Outputs:**
+- asg_name - Auto Scaling Group name
+- launch_template_id - Launch template id
+- launch_template_latest_version - Latest template version
+
 ## ALB Module
 Creates an Application Load Balancer to distribute traffic across multiple targets with health checking
 
@@ -135,8 +158,6 @@ Establishes site-to-site VPN connectivity between AWS VPC and on premises networ
 - route_table_ids - Route tables for route propagation
 
 **Outputs:**
-- vpn_gateway_id - VPN gateway identifier
-- customer_gateway_id - Customer gateway identifier
-- vpn_connection_id - VPN connection identifier
-- vpn_connection_tunnel1_address / tunnel2_address - Tunnel endpoints
-- vpn_connection_tunnel1_preshared_key / tunnel2_preshared_key - Tunnel PSKs
+- vpn_gateway_id / customer_gateway_id / vpn_connection_id (when enabled)
+- vpn_connection tunnel details
+- client_vpn_endpoint_id and association IDs when Client VPN is enabled
