@@ -62,5 +62,22 @@ There are no alarms configured to notify you when problems occur (server failure
 ### What I changed
 
 - Added VPC Flow Logs by adding aws_flow_log resources
-- CloudWatch was added and enabled in instances to monitor 
+- CloudWatch was added and enabled in instances to monitor
 - Enabled monitoring and backup for each module in the sandbox environment
+
+## Pipeline and tooling upgrades
+
+### Improvement plan
+
+- **CI quality gates** – add Terraform `fmt`/`validate` and Ansible `ansible-lint` jobs to the pipeline, blocking merges on failures to enforce baseline hygiene.
+- **Policy and security checks** – introduce IaC policy scanning (e.g., `terraform-compliance` or `tfsec`) and secret scanning to prevent risky configurations and credential leaks before apply.
+- **Change control and approvals** – require code review plus an explicit approval step for plan/apply jobs, with change tickets linked in commit messages or pipeline variables for traceability.
+- **Artifact retention** – persist Terraform plan outputs, Ansible run logs, and test reports as pipeline artifacts to support audits and rollback decisions.
+- **State and secret handling** – ensure remote Terraform state is locked and versioned (e.g., S3 + DynamoDB) and move any remaining secrets to a managed vault or CI secret store with least-privilege access.
+
+### Network design verification
+
+- Validate subnetting, route tables, and ACLs against the IP plan for each site, confirming expected paths for internal, internet-bound, and VPN traffic.
+- Confirm security groups and NACLs align with the tightened ingress/egress rules (HTTPS front-door, restricted SSH, minimal inter-tier access) and document any exceptions.
+- Exercise failover and resiliency paths: per-AZ NAT gateway availability, multi-AZ instance placement, and backup/restore tests for stateful components.
+- Record evidence from `terraform plan` reviews, connectivity checks (e.g., `ping`, `curl` through bastion/VPN), and monitoring alarms to show the design was reviewed and verified.
