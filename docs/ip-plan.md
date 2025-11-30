@@ -19,3 +19,7 @@
 - Guest Wi-Fi: 10.20.30.0/24
 - MGMT: 10.20.254.0/28
 - Client VPN Pool: 172.16.20.0/22
+
+## Protocol Used
+- HTTPS for secure communication.
+- HTTPS certificate is self-signed without using an ACM cert.

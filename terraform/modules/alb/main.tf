@@ -108,6 +108,33 @@ resource "aws_lb_listener" "http" {
       }
     }
   }
+
+  dynamic "certificate" {
+    for_each = var.listener_protocol == "HTTPS" && var.certificate_arn != "" ? [var.certificate_arn] : []
+
+    content {
+      certificate_arn = certificate.value
+    }
+  }
+
+  ssl_policy = var.listener_protocol == "HTTPS" ? var.ssl_policy : null
+}
+
+resource "aws_lb_listener" "http_redirect" {
+  count             = var.enable_http_redirect ? 1 : 0
+  load_balancer_arn = aws_lb.this.arn
+  port              = 80
+  protocol          = "HTTP"
+
+  default_action {
+    type = "redirect"
+
+    redirect {
+      port        = "443"
+      protocol    = "HTTPS"
+      status_code = "HTTP_301"
+    }
+  }
 }
 
 resource "aws_lb_target_group_attachment" "this" {

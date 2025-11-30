@@ -85,6 +85,40 @@ resource "aws_acm_certificate" "client_vpn_server" {
   }
 }
 
+resource "tls_private_key" "web_alb" {
+  algorithm = "RSA"
+  rsa_bits  = 2048
+}
+
+resource "tls_self_signed_cert" "web_alb" {
+  key_algorithm   = "RSA"
+  private_key_pem = tls_private_key.web_alb.private_key_pem
+
+  subject {
+    common_name  = "${var.route53_web_record_name}.${var.route53_domain_name}"
+    organization = "Welsh Blanket Factory"
+  }
+
+  validity_period_hours = 8760
+
+  allowed_uses = [
+    "key_encipherment",
+    "digital_signature",
+    "server_auth"
+  ]
+}
+
+resource "aws_acm_certificate" "web_alb" {
+  private_key       = tls_private_key.web_alb.private_key_pem
+  certificate_body  = tls_self_signed_cert.web_alb.cert_pem
+  certificate_chain = tls_self_signed_cert.web_alb.cert_pem
+
+  tags = {
+    Name        = "${var.route53_web_record_name}.${var.route53_domain_name}"
+    Environment = "sandbox"
+  }
+}
+
 resource "aws_cloudwatch_log_group" "client_vpn" {
   name              = "/aws/vpn/client"
   retention_in_days = 14
@@ -739,7 +773,7 @@ module "llanelli_developer_server" {
   key_name           = var.key_name
   security_group_ids = [module.sg_llanelli_developer_server.security_group_id]
   monitoring         = true 
-  enable_backup      = false
+  enable_backup      = true
   tags               = { Site = "llanelli", Role = "developer-server", Environment = "sandbox" }
 }
 
@@ -766,8 +800,8 @@ module "llanelli_dhcp_server" {
   private_ip         = "10.10.10.12"
   key_name           = var.key_name
   security_group_ids = [module.sg_llanelli_dhcp_server.security_group_id]
-  monitoring         = false
-  enable_backup      = false
+  monitoring         = true
+  enable_backup      = true
   tags               = { Site = "llanelli", Role = "dhcp-server", Environment = "sandbox" }
 }
 
@@ -781,8 +815,8 @@ module "llanelli_guest_wifi_gateway" {
   associate_public_ip = true
   key_name            = var.key_name
   security_group_ids  = [module.sg_llanelli_guest_wifi.security_group_id]
-  monitoring          = false
-  enable_backup       = false
+  monitoring          = true
+  enable_backup       = true
   tags                = { Site = "llanelli", Role = "guest-wifi", Environment = "sandbox" }
 }
 
@@ -839,8 +873,8 @@ module "cardiff_dhcp_server" {
   private_ip         = "10.20.10.13"
   key_name           = var.key_name
   security_group_ids = [module.sg_cardiff_dhcp_server.security_group_id]
-  monitoring         = false
-  enable_backup      = false 
+  monitoring         = true
+  enable_backup      = true 
   tags               = { Site = "cardiff", Role = "dhcp-server", Environment = "sandbox" }
 }
 
@@ -854,8 +888,8 @@ module "cardiff_guest_wifi_gateway" {
   associate_public_ip = true
   key_name            = var.key_name
   security_group_ids  = [module.sg_cardiff_guest_wifi.security_group_id]
-  monitoring          = false
-  enable_backup       = false
+  monitoring          = true
+  enable_backup       = true
   tags                = { Site = "cardiff", Role = "guest-wifi", Environment = "sandbox" }
 }
 
@@ -937,7 +971,10 @@ module "llanelli_alb" {
   security_groups = [module.sg_llanelli_alb.security_group_id]
   target_ids      = []
   target_port     = 80
-  listener_port   = 80
+  listener_port   = 443
+  listener_protocol = "HTTPS"
+  certificate_arn   = aws_acm_certificate.web_alb.arn
+  enable_http_redirect = true
   enable_access_logs         = true
   access_logs_bucket_name    = "llanelli-alb-logs-sandbox" # S3 Bucket doesnt exist due to costs involved
   access_logs_retention_days = 30
@@ -953,7 +990,10 @@ module "cardiff_alb" {
   security_groups = [module.sg_cardiff_alb.security_group_id]
   target_ids      = []
   target_port     = 80
-  listener_port   = 80
+  listener_port   = 443
+  listener_protocol = "HTTPS"
+  certificate_arn   = aws_acm_certificate.web_alb.arn
+  enable_http_redirect = true
   enable_access_logs         = true
   access_logs_bucket_name    = "cardiff-alb-logs-sandbox"
   access_logs_retention_days = 30
@@ -1067,8 +1107,8 @@ resource "aws_route53_zone" "wbf" {
 
 resource "aws_route53_health_check" "llanelli_web" {
   fqdn              = module.llanelli_alb.alb_dns_name
-  port              = 80
-  type              = "HTTP"
+  port              = 443
+  type              = "HTTPS"
   resource_path     = "/"
   request_interval  = 30
   failure_threshold = 3
@@ -1077,8 +1117,8 @@ resource "aws_route53_health_check" "llanelli_web" {
 
 resource "aws_route53_health_check" "cardiff_web" {
   fqdn              = module.cardiff_alb.alb_dns_name
-  port              = 80
-  type              = "HTTP"
+  port              = 443
+  type              = "HTTPS"
   resource_path     = "/"
   request_interval  = 30
   failure_threshold = 3
@@ -1219,8 +1259,8 @@ module "llanelli_alarms" {
   cpu_threshold           = 80
   response_time_threshold = 2.0
   error_5xx_threshold     = 10
-  enable_disk_monitoring   = false 
-  enable_memory_monitoring = false 
+  enable_disk_monitoring   = true 
+  enable_memory_monitoring = true 
 
   tags = {
     Site        = "Llanelli"
@@ -1252,8 +1292,8 @@ module "cardiff_alarms" {
 
   cpu_threshold = 80
 
-  enable_disk_monitoring   = false
-  enable_memory_monitoring = false
+  enable_disk_monitoring   = true
+  enable_memory_monitoring = true
 
   tags = {
     Site        = "Cardiff"

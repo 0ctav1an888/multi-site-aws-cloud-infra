@@ -26,7 +26,6 @@ variable "load_balancer_arn" {
   default     = ""
 }
 
-# CPU Alarm Configuration
 variable "cpu_threshold" {
   description = "CPU utilization threshold percentage"
   type        = number
@@ -36,7 +35,7 @@ variable "cpu_threshold" {
 variable "cpu_period" {
   description = "Period in seconds for CPU alarm evaluation"
   type        = number
-  default     = 300 # 5 minutes
+  default     = 300
 }
 
 variable "cpu_evaluation_periods" {
@@ -60,7 +59,7 @@ variable "disk_threshold" {
 variable "enable_memory_monitoring" {
   description = "Enable memory monitoring (requires CloudWatch Agent)"
   type        = bool
-  default     = false #
+  default     = false 
 }
 
 variable "memory_threshold" {

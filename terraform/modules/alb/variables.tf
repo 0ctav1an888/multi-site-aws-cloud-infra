@@ -54,6 +54,18 @@ variable "listener_protocol" {
   default     = "HTTP"
 }
 
+variable "certificate_arn" {
+  type        = string
+  description = "ACM certificate ARN for HTTPS listeners"
+  default     = ""
+}
+
+variable "ssl_policy" {
+  type        = string
+  description = "SSL policy for HTTPS listeners"
+  default     = "ELBSecurityPolicy-2016-08"
+}
+
 variable "target_ids" {
   type        = list(string)
   description = "Target instance IDs"
@@ -142,4 +154,10 @@ variable "access_logs_retention_days" {
   description = "Number of days to retain ALB access logs"
   type        = number
   default     = 30
+}
+
+variable "enable_http_redirect" {
+  description = "Create an HTTP listener that redirects to HTTPS"
+  type        = bool
+  default     = false
 }
