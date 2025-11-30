@@ -41,8 +41,6 @@ There is no use of backup disk volumes configured with an automated backup syste
 
 With this changes we will further reinforce the reliability of this implementation during any possible disasters. With the implmentation of multiple shared availability zones we will ensure continuous accessibility of systems to the end user and if disruption will occur, a backup system in place will ensure no data will be lost ensuring a smooth recovery.
 
-# Continue editing below this point
-
 ## Issue 3: No monitoring or logging processes
 
 ### The Problem
