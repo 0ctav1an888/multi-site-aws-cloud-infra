@@ -1,6 +1,6 @@
 # Infrastructure Register / System Integration
 
-This document acts as a register for the infrastructure components and how the Terraform components are deployed so this way there is a traced location mapped to the existing IP plan. This document helps towards helping auditing process for this Terraform infrastructure.
+This document is a register for the infrastructure components demonstrating how the Terraform components are deployed. This way there is a location mapped to the existing IP plan. This document helps towards helping auditing process for this Terraform infrastructure.
 
 ## Core network componenets
 | Component | Site  | CIDR | Location | Inventory | Integrations & dependencies |
