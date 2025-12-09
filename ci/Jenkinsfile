@@ -2,6 +2,7 @@ pipeline {
     agent any
 
     stages {
+        // Validation Stage
         stage('Terraform Validation') {
             steps {
                 echo "Running Terraform Validation Commands"
@@ -10,18 +11,40 @@ pipeline {
                         terraform init -input=false
                         terraform validate
                         terraform plan -input=false
+                        detect-secrets scan > .secrets.baseline
+                        detect-secrets audit .secrets.baseline --fail-on-unaudited
                     """
                 }
             }
         }
 
-        stage('Ansible Config') {
-            steps {
-                echo """Launching Main Ansible Playbook"""
-                dir('ansible') {
-                    sh "ansible-playbook -i inventory/hosts.yml playbooks/site.yml"
-                }
+        // Secrets Scanning & Credentials Vulnerability Stage
+        stage('Infrastructure Secret Scanning') {
+            echo "Running Detect-Secrets from pip"
+            dir('terraform/envs/sandbox') {
+                sh """
+                    detect-secrets scan --all-files --baseline /tmp/.secrets.baseline
+                    detect-secrets scan --all-files --baseline /tmp/.secrets.baseline --fail-on-unaudited
+                """
             }
         }
+
+        // Ansible Configurations Stage
+        stage('Ansible Configurations') {
+            echo "Running Ansible Configurations"
+            dir('ansible') {
+                    sh "ansible-playbook -i inventory/hosts.yml playbooks/site.yml"
+            }
+        }
+
+        // Final Deployment Stage
+        stage('Final Deployment')
+            echo "Finalising Deployment"
+            dir('terraform/envs/sandbox') {
+                sh """
+                    terraform apply -input=false
+                """
+            }
     }
 }
+
